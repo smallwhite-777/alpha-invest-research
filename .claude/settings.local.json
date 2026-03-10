@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm 2)",
+      "Bash(1:*)",
+      "Bash(sudo chown:*)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)",
+      "Read(//private/tmp/**)",
+      "Bash(npx create-next-app@latest invest-research --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npx create-next-app@latest invest-research --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack 2)",
+      "Bash(npx create-next-app@latest invest-research --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
+      "Bash(npm config:*)",
+      "Bash(cp -r /tmp/invest-research/* .)",
+      "Bash(cp /tmp/invest-research/.gitignore .)",
+      "Bash(cp /tmp/invest-research/.eslintrc* .)",
+      "Bash(cp /tmp/invest-research/eslint.config* .)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d)"
+    ]
+  }
+}
