@@ -1,0 +1,545 @@
+{
+  "best_report": {
+    "fitting_score": 83.5,
+    "generalization_score": 72.65,
+    "overfit_risk": 0,
+    "risk_level": "低风险",
+    "ability_level": 3,
+    "target_achieved": false,
+    "test_results": {
+      "Q1": {
+        "total_score": 87,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 9,
+            "found_sections": [
+              "评级",
+              "目标价",
+              "行业周期",
+              "主营业务",
+              "竞争优势",
+              "财务分析",
+              "盈利预测",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 88,
+            "sample_numbers": [
+              [
+                "131.15",
+                "亿"
+              ],
+              [
+                "59.75",
+                "亿"
+              ],
+              [
+                "558.22",
+                "亿"
+              ],
+              [
+                "25.4",
+                "%"
+              ],
+              [
+                "61.16",
+                "亿"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "工程机械",
+            "required_vars": [
+              "挖掘机",
+              "电动化",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "found_vars": [
+              "挖掘机",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "coverage": "83.3%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q2": {
+        "total_score": 72,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 5,
+            "found_sections": [
+              "行业周期",
+              "主营业务",
+              "财务分析",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 50,
+            "sample_numbers": [
+              [
+                "93.90",
+                "亿"
+              ],
+              [
+                "944.38",
+                "元"
+              ],
+              [
+                "17.15",
+                "亿"
+              ],
+              [
+                "196.39",
+                "亿"
+              ],
+              [
+                "7.00",
+                "元"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "液压件",
+            "required_vars": [
+              "液压件",
+              "泵阀",
+              "国产替代",
+              "油缸",
+              "挖机配套"
+            ],
+            "found_vars": [
+              "泵阀",
+              "油缸"
+            ],
+            "coverage": "40.0%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q3": {
+        "total_score": 76,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 6,
+            "found_sections": [
+              "行业周期",
+              "主营业务",
+              "竞争优势",
+              "财务分析",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 24,
+            "sample_numbers": [
+              [
+                "379.47",
+                "亿"
+              ],
+              [
+                "189.25",
+                "亿"
+              ],
+              [
+                "5.72",
+                "元"
+              ],
+              [
+                "379.47",
+                "亿"
+              ],
+              [
+                "189.25",
+                "亿"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "养猪",
+            "required_vars": [
+              "能繁母猪",
+              "猪周期",
+              "完全成本",
+              "PSY",
+              "出栏量",
+              "饲料成本"
+            ],
+            "found_vars": [
+              "能繁母猪",
+              "猪周期",
+              "完全成本",
+              "出栏量"
+            ],
+            "coverage": "66.7%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q4": {
+        "total_score": 75,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 3,
+            "found_sections": [
+              "主营业务",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 6,
+            "sample_numbers": [
+              [
+                "1.6",
+                "元"
+              ],
+              [
+                "1.6",
+                "元"
+              ],
+              [
+                "1.6",
+                "元"
+              ],
+              [
+                "1.6",
+                "元"
+              ],
+              [
+                "1.6",
+                "元"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "眼科医疗",
+            "required_vars": [
+              "眼科",
+              "屈光",
+              "白内障",
+              "视光",
+              "连锁医院",
+              "医师"
+            ],
+            "found_vars": [
+              "眼科",
+              "屈光",
+              "白内障",
+              "视光",
+              "连锁医院"
+            ],
+            "coverage": "83.3%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q5": {
+        "total_score": 65,
+        "is_passed": false,
+        "details": {
+          "structure": {
+            "found_count": 5,
+            "found_sections": [
+              "行业周期",
+              "主营业务",
+              "竞争优势",
+              "财务分析",
+              "估值分析"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 84,
+            "sample_numbers": [
+              [
+                "485.13",
+                "亿"
+              ],
+              [
+                "65",
+                "亿"
+              ],
+              [
+                "29.72",
+                "%"
+              ],
+              [
+                "23.34",
+                "%"
+              ],
+              [
+                "3.60",
+                "元"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "工程机械",
+            "required_vars": [
+              "挖掘机",
+              "电动化",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "found_vars": [
+              "挖掘机",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "coverage": "83.3%"
+          },
+          "time_accuracy": {
+            "forbidden_years_found": [
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024",
+              "2024"
+            ],
+            "correct_years_found": 0,
+            "forbidden_content": []
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q6": {
+        "total_score": 76,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 8,
+            "found_sections": [
+              "评级",
+              "目标价",
+              "行业周期",
+              "主营业务",
+              "竞争优势",
+              "财务分析",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 31,
+            "sample_numbers": [
+              [
+                "916.60",
+                "亿"
+              ],
+              [
+                "916.60",
+                "亿"
+              ],
+              [
+                "59.76",
+                "亿"
+              ],
+              [
+                "916.60",
+                "亿"
+              ],
+              [
+                "59.76",
+                "亿"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "工程机械",
+            "required_vars": [
+              "挖掘机",
+              "电动化",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "found_vars": [
+              "市场份额",
+              "起重机"
+            ],
+            "coverage": "33.3%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      },
+      "Q7": {
+        "total_score": 80,
+        "is_passed": true,
+        "details": {
+          "structure": {
+            "found_count": 6,
+            "found_sections": [
+              "目标价",
+              "主营业务",
+              "竞争优势",
+              "财务分析",
+              "估值分析",
+              "风险提示"
+            ]
+          },
+          "core_viewpoint": {
+            "keyword_coverage": "50.0%",
+            "has_viewpoint": true,
+            "has_logic": true
+          },
+          "data_accuracy": {
+            "numbers_found": 105,
+            "sample_numbers": [
+              [
+                "485.13",
+                "亿"
+              ],
+              [
+                "29.72",
+                "%"
+              ],
+              [
+                "23.34",
+                "%"
+              ],
+              [
+                "23.34",
+                "%"
+              ],
+              [
+                "558.22",
+                "亿"
+              ]
+            ]
+          },
+          "industry_variable": {
+            "industry": "工程机械",
+            "required_vars": [
+              "挖掘机",
+              "电动化",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "found_vars": [
+              "挖掘机",
+              "市场份额",
+              "海外收入",
+              "起重机",
+              "混凝土"
+            ],
+            "coverage": "83.3%"
+          },
+          "overfitting": {
+            "penalty": 0,
+            "violations": []
+          }
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "iteration": 0,
+      "status": "baseline",
+      "timestamp": "2026-03-28T03:22:36.601511",
+      "fitting_score": 79.0,
+      "generalization_score": 73.0,
+      "overfit_risk": 2,
+      "target_achieved": false,
+      "strategies": []
+    },
+    {
+      "iteration": 1,
+      "status": "accepted",
+      "timestamp": "2026-03-28T03:28:22.033973",
+      "fitting_score": 83.5,
+      "generalization_score": 72.65,
+      "overfit_risk": 0,
+      "target_achieved": false,
+      "strategies": [
+        "time_handling"
+      ]
+    }
+  ],
+  "config": {
+    "target_fitting_score": 85.0,
+    "target_generalization_score": 70.0,
+    "max_overfit_risk": 30,
+    "iterations": 2
+  }
+}

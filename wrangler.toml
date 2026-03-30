@@ -1,0 +1,14 @@
+# Cloudflare Pages 配置
+name = "alpha-invest"
+compatibility_date = "2024-01-01"
+
+[site]
+bucket = ".next"
+
+# 环境变量
+[vars]
+PYTHON_BACKEND_URL = "https://alpha-backend.你的域名.workers.dev"
+
+# 生产环境变量
+[env.production.vars]
+PYTHON_BACKEND_URL = "https://alpha-backend.你的域名.workers.dev"

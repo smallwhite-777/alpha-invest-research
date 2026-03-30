@@ -1,0 +1,124 @@
+{
+  "query": "中煤能源这两年的财务业绩怎么样",
+  "entity": "中煤能源",
+  "stock_code": "601898",
+  "intent": "financial_analysis",
+  "time_range": [
+    "2024",
+    "2023"
+  ],
+  "financial_summary": {},
+  "profitability_analysis": {
+    "毛利率": {
+      "2019": "55%",
+      "2024": "24%",
+      "2020": "26%",
+      "2016": "06",
+      "2006": "",
+      "2008": "",
+      "2015": "601898."
+    },
+    "环比": {
+      "2022": "75%",
+      "2024": "70",
+      "2025": "85",
+      "2014": "6"
+    },
+    "净利率": {
+      "2024": "5.5%",
+      "2020": "6.0%"
+    },
+    "期间费用率": {
+      "2024": "5.5%",
+      "2020": "6.0%"
+    },
+    "财务费用率": {
+      "2020": "30亿",
+      "2024": "22亿"
+    },
+    "同比": {
+      "2015": "1",
+      "2017": "11"
+    },
+    "trend_analysis_available": true
+  },
+  "cashflow_analysis": {
+    "自由现金流": {
+      "2024": "1000",
+      "2027": "80",
+      "2025": "1",
+      "2016": "100",
+      "2012": "300",
+      "2023": "14",
+      "2020": "14%",
+      "2010": "8",
+      "2022": "3",
+      "2000": "1.0"
+    },
+    "经营活动产生的现金流量净额": {
+      "2010": "8",
+      "2022": "3",
+      "2000": "1.0"
+    },
+    "投资活动现金流": {
+      "2000": "1.0",
+      "2010": "8",
+      "2022": "3"
+    },
+    "cashflow_quality_analyzed": true
+  },
+  "business_structure": {},
+  "management_outlook": {},
+  "valuation_analysis": {},
+  "risk_assessment": {},
+  "industry_comparison": {},
+  "cross_validated_metrics": [
+    {
+      "metric_name": "毛利率",
+      "values": {
+        "2019": "55%",
+        "2024": "24%",
+        "2020": "26%",
+        "2016": "06",
+        "2006": "",
+        "2008": "",
+        "2015": "601898."
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 0.2857142857142857,
+      "notes": "Extracted from profitability"
+    },
+    {
+      "metric_name": "净利率",
+      "values": {
+        "2024": "5.5%",
+        "2020": "6.0%"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 0.0,
+      "notes": "Extracted from profitability"
+    }
+  ],
+  "year_over_year_comparison": {},
+  "source_files": [
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\history.jsonl",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdown\\2247532225_4_中金 _ 银行年报的三个关键词：营收增长、报表出清、布局新机遇.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdown\\2247488622_1_6月经济数据前瞻：生产同比增速小幅回升，金融条件趋稳.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdownhuatai\\2649802667_3_华泰 _ 金工：价值投资新篇 - 首批自由现金流ETF问世.md"
+  ],
+  "overall_confidence": 0.36363636363636365,
+  "data_quality_score": 0.6166666666666667,
+  "generation_timestamp": "2026-03-27T08:22:08.415505",
+  "formatted_report": "# 中煤能源 投资分析报告\n\n**分析时间范围**: 2024, 2023\n**数据置信度**: 36%\n**数据质量评分**: 62%\n\n\n## 三、盈利能力分析\n- **毛利率**:\n  - 2019: 55%\n  - 2024: 24%\n  - 2020: 26%\n  - 2016: 06\n  - 2006: \n  - 2008: \n  - 2015: 601898.\n- **环比**:\n  - 2022: 75%\n  - 2024: 70\n  - 2025: 85\n  - 2014: 6\n- **净利率**:\n  - 2024: 5.5%\n  - 2020: 6.0%\n- **期间费用率**:\n  - 2024: 5.5%\n  - 2020: 6.0%\n- **财务费用率**:\n  - 2020: 30亿\n  - 2024: 22亿\n- **同比**:\n  - 2015: 1\n  - 2017: 11\n- **trend_analysis_available**: True\n\n## 四、现金流分析\n- **自由现金流**:\n  - 2024: 1000\n  - 2027: 80\n  - 2025: 1\n  - 2016: 100\n  - 2012: 300\n  - 2023: 14\n  - 2020: 14%\n  - 2010: 8\n  - 2022: 3\n  - 2000: 1.0\n- **经营活动产生的现金流量净额**:\n  - 2010: 8\n  - 2022: 3\n  - 2000: 1.0\n- **投资活动现金流**:\n  - 2000: 1.0\n  - 2010: 8\n  - 2022: 3\n- **cashflow_quality_analyzed**: True\n\n---\n## 数据来源\n1. 中煤能源-601898.SH-2024.txt\n2. deep_research_report_2026-03-24_highquality.md\n3. analysis_whitepaper.md\n4. history.jsonl\n5. 2247532225_4_中金 _ 银行年报的三个关键词：营收增长、报表出清、布局新机遇.md\n\n*报告生成时间: 2026-03-27T08:22:08.415505*"
+}

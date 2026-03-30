@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "alphaear-news": {
+      "source": "RKiding/Awesome-finance-skills",
+      "sourceType": "github",
+      "computedHash": "8eabe2b9bf8f37da17b940e2268d1776105996f46a91f639800a89df6ab052c3"
+    },
+    "alphaear-stock": {
+      "source": "RKiding/Awesome-finance-skills",
+      "sourceType": "github",
+      "computedHash": "aa278137ee8fec1f182876790c606e3934a3911c16972d90d0f6aecce73b5b41"
+    }
+  }
+}

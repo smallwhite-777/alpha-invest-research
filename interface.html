@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALPHA - First Principles Investment Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+
+        /* ========= DARK THEME ========= */
+        .theme-dark { background-color: #050505; color: #f5f5f7; }
+        .theme-dark .card { background-color: #0c0c0e; border-color: #1f1f22; }
+        .theme-dark .border-theme { border-color: #1f1f22; }
+        .theme-dark .text-muted { color: #636366; }
+        .theme-dark .hover-theme:hover { background-color: #1c1c1e; }
+        .theme-dark .bg-input { background-color: #1c1c1e; color: #f5f5f7; }
+
+        /* ========= LIGHT THEME ========= */
+        .theme-light { background-color: #f2f2f7; color: #1c1c1e; }
+        .theme-light .card {
+            background-color: #ffffff;
+            border-color: rgba(0,0,0,0.06);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.05);
+        }
+        .theme-light .border-theme { border-color: rgba(0,0,0,0.07); }
+        .theme-light .text-muted { color: #8e8e93; }
+        .theme-light .hover-theme:hover { background-color: rgba(0,0,0,0.025); }
+        .theme-light .bg-input { background-color: #f2f2f7; color: #1c1c1e; }
+
+        /* ========= SCROLLBAR ========= */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        .theme-dark ::-webkit-scrollbar-thumb { background: #2c2c2e; border-radius: 2px; }
+        .theme-light ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 2px; }
+
+        /* ========= ANIMATION ========= */
+        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ========= TOGGLE SWITCH ========= */
+        .toggle-switch {
+            position: relative; width: 44px; height: 24px;
+            background-color: #3a3a3c; border-radius: 12px; cursor: pointer;
+            transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toggle-switch.active { background-color: #34c759; }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 18px; height: 18px; background-color: white; border-radius: 50%;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .toggle-switch.active::after { transform: translateX(20px); }
+
+        /* ========= PERIOD BUTTONS (compact) ========= */
+        .period-btn {
+            padding: 2px 6px; font-size: 9px; font-weight: 500;
+            border-radius: 4px; cursor: pointer; letter-spacing: 0.02em;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .theme-dark .period-btn { background-color: #1c1c1e; color: #636366; }
+        .theme-dark .period-btn:hover, .theme-dark .period-btn.active { background-color: #2c2c2e; color: #f5f5f7; }
+        .theme-light .period-btn { background-color: #f2f2f7; color: #8e8e93; }
+        .theme-light .period-btn:hover, .theme-light .period-btn.active { background-color: #e5e5ea; color: #1c1c1e; }
+
+        /* ========= MODAL ========= */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal-content {
+            width: 90%; max-width: 900px; max-height: 85vh;
+            overflow-y: auto; border-radius: 18px; padding: 24px;
+        }
+        .theme-dark .modal-content {
+            background: rgba(14,14,16,0.94);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.65);
+        }
+        .theme-light .modal-content {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255,255,255,0.7);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.9) inset;
+        }
+
+        /* ========= GLOW ========= */
+        .glow-green { box-shadow: 0 0 8px rgba(52,199,89,0.25); }
+        .glow-red { box-shadow: 0 0 8px rgba(255,59,48,0.25); }
+
+        /* ========= GENERAL TRANSITIONS ========= */
+        button, select, input { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card { transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* ========= CHART ========= */
+        .mini-chart-card { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+        .chart-canvas-wrapper { flex: 1; min-height: 0; position: relative; }
+
+        /* ========= SELECT RESET ========= */
+        select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+    </style>
+</head>
+<body class="theme-dark h-screen flex flex-col overflow-hidden" id="app">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center px-6 py-3 border-b border-theme">
+        <div class="flex items-center gap-4">
+            <div class="text-2xl font-bold tracking-tighter">ALPHA.</div>
+            <div class="text-xs text-muted font-light tracking-wide">First Principles Investment Intelligence</div>
+            <span class="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 font-medium tracking-wide">Pro</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2.5">
+                <span class="text-xs text-muted font-light">Light</span>
+                <div class="toggle-switch" id="themeToggle" onclick="toggleTheme()"></div>
+            </div>
+            <div class="text-xs text-muted font-light tabular-nums" id="lastUpdate">更新于 --:--:--</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+
+        <!-- Left Column (9列) -->
+        <div class="col-span-12 lg:col-span-9 flex flex-col gap-3 h-full overflow-hidden">
+
+            <!-- 宏观指标 -->
+            <div class="card border border-theme rounded-xl p-3">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">Macro Indicators</div>
+                        <span class="text-[10px] text-green-500 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>Live
+                        </span>
+                    </div>
+                    <button class="text-xs text-muted hover:opacity-70 transition flex items-center gap-1" onclick="openModal('macro')">
+                        全部 <span class="text-base">›</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-6 gap-2.5" id="macroIndicators"></div>
+            </div>
+
+            <!-- 3-Chart Area -->
+            <div class="card border border-theme rounded-xl p-4 flex-1 flex flex-col min-h-0">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">Time Series Analysis & Correlation</div>
+                    <button class="text-xs text-muted hover:opacity-70 transition flex items-center gap-1" onclick="openModal('chart')">
+                        高级 <span class="text-base">›</span>
+                    </button>
+                </div>
+                <div class="flex-1 grid grid-cols-3 gap-3 min-h-0">
+
+                    <!-- Chart 1 -->
+                    <div class="mini-chart-card border border-theme rounded-lg p-2">
+                        <div class="flex items-center gap-1 mb-1.5">
+                            <select id="xVar1" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(1); saveState();">
+                                <option value="gold">Gold</option><option value="dxy">DXY</option>
+                                <option value="bond">US10Y</option><option value="rates">Rates</option>
+                                <option value="oil">Oil</option><option value="geo">GeoRisk</option>
+                            </select>
+                            <span class="text-[9px] text-muted flex-shrink-0">vs</span>
+                            <select id="yVar1" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(1); saveState();">
+                                <option value="gold">Gold</option><option value="dxy" selected>DXY</option>
+                                <option value="bond">US10Y</option><option value="rates">Rates</option>
+                                <option value="oil">Oil</option><option value="geo">GeoRisk</option>
+                            </select>
+                            <span id="corr1" class="text-[9px] font-semibold flex-shrink-0 ml-0.5">—</span>
+                        </div>
+                        <div class="flex gap-0.5 mb-1.5">
+                            <button class="period-btn" data-chart="1" data-period="1D" onclick="changePeriod(1,'1D')">1D</button>
+                            <button class="period-btn" data-chart="1" data-period="1M" onclick="changePeriod(1,'1M')">1M</button>
+                            <button class="period-btn active" data-chart="1" data-period="1Y" onclick="changePeriod(1,'1Y')">1Y</button>
+                            <button class="period-btn" data-chart="1" data-period="10Y" onclick="changePeriod(1,'10Y')">10Y</button>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="chart1"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2 -->
+                    <div class="mini-chart-card border border-theme rounded-lg p-2">
+                        <div class="flex items-center gap-1 mb-1.5">
+                            <select id="xVar2" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(2); saveState();">
+                                <option value="gold">Gold</option><option value="dxy">DXY</option>
+                                <option value="bond" selected>US10Y</option><option value="rates">Rates</option>
+                                <option value="oil">Oil</option><option value="geo">GeoRisk</option>
+                            </select>
+                            <span class="text-[9px] text-muted flex-shrink-0">vs</span>
+                            <select id="yVar2" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(2); saveState();">
+                                <option value="gold">Gold</option><option value="dxy">DXY</option>
+                                <option value="bond">US10Y</option><option value="rates" selected>Rates</option>
+                                <option value="oil">Oil</option><option value="geo">GeoRisk</option>
+                            </select>
+                            <span id="corr2" class="text-[9px] font-semibold flex-shrink-0 ml-0.5">—</span>
+                        </div>
+                        <div class="flex gap-0.5 mb-1.5">
+                            <button class="period-btn" data-chart="2" data-period="1D" onclick="changePeriod(2,'1D')">1D</button>
+                            <button class="period-btn" data-chart="2" data-period="1M" onclick="changePeriod(2,'1M')">1M</button>
+                            <button class="period-btn active" data-chart="2" data-period="1Y" onclick="changePeriod(2,'1Y')">1Y</button>
+                            <button class="period-btn" data-chart="2" data-period="10Y" onclick="changePeriod(2,'10Y')">10Y</button>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="chart2"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Chart 3 -->
+                    <div class="mini-chart-card border border-theme rounded-lg p-2">
+                        <div class="flex items-center gap-1 mb-1.5">
+                            <select id="xVar3" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(3); saveState();">
+                                <option value="gold">Gold</option><option value="dxy">DXY</option>
+                                <option value="bond">US10Y</option><option value="rates">Rates</option>
+                                <option value="oil" selected>Oil</option><option value="geo">GeoRisk</option>
+                            </select>
+                            <span class="text-[9px] text-muted flex-shrink-0">vs</span>
+                            <select id="yVar3" class="text-[9px] bg-input border border-theme rounded px-1 py-0.5 focus:outline-none flex-1 min-w-0" onchange="updateChart(3); saveState();">
+                                <option value="gold">Gold</option><option value="dxy">DXY</option>
+                                <option value="bond">US10Y</option><option value="rates">Rates</option>
+                                <option value="oil">Oil</option><option value="geo" selected>GeoRisk</option>
+                            </select>
+                            <span id="corr3" class="text-[9px] font-semibold flex-shrink-0 ml-0.5">—</span>
+                        </div>
+                        <div class="flex gap-0.5 mb-1.5">
+                            <button class="period-btn" data-chart="3" data-period="1D" onclick="changePeriod(3,'1D')">1D</button>
+                            <button class="period-btn" data-chart="3" data-period="1M" onclick="changePeriod(3,'1M')">1M</button>
+                            <button class="period-btn active" data-chart="3" data-period="1Y" onclick="changePeriod(3,'1Y')">1Y</button>
+                            <button class="period-btn" data-chart="3" data-period="10Y" onclick="changePeriod(3,'10Y')">10Y</button>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="chart3"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 行业指标 -->
+            <div class="card border border-theme rounded-xl p-3">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">Sector Performance</div>
+                    <button class="text-xs text-muted hover:opacity-70 transition flex items-center gap-1" onclick="openModal('sector')">
+                        全部 <span class="text-base">›</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-6 gap-2.5" id="sectorIndicators"></div>
+            </div>
+
+        </div>
+
+        <!-- Right Column (3列) -->
+        <div class="col-span-12 lg:col-span-3 flex flex-col h-full overflow-hidden">
+            <div class="card border border-theme rounded-xl p-3 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">Alpha Insights</div>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium" id="unreadCount">0</span>
+                    </div>
+                    <button class="text-xs text-muted hover:opacity-70 transition" onclick="openModal('news')">订阅 ›</button>
+                </div>
+
+                <!-- 4 筛选器 -->
+                <div class="grid grid-cols-2 gap-1 mb-3">
+                    <select id="newsCategory" class="text-[9px] bg-input border border-theme rounded-md px-1.5 py-1 focus:outline-none" onchange="renderNews(); saveState();">
+                        <option value="all">全行业</option>
+                        <option value="macro">宏观</option>
+                        <option value="semiconductor">半导体</option>
+                        <option value="energy">能源</option>
+                        <option value="ev">电动车</option>
+                        <option value="biotech">生物科技</option>
+                        <option value="finance">金融</option>
+                        <option value="ai">AI</option>
+                    </select>
+                    <select id="newsCountry" class="text-[9px] bg-input border border-theme rounded-md px-1.5 py-1 focus:outline-none" onchange="renderNews(); saveState();">
+                        <option value="all">全球</option>
+                        <option value="us">美国</option>
+                        <option value="cn">中国</option>
+                        <option value="eu">欧洲</option>
+                        <option value="jp">日本</option>
+                    </select>
+                    <select id="newsImportance" class="text-[9px] bg-input border border-theme rounded-md px-1.5 py-1 focus:outline-none" onchange="renderNews(); saveState();">
+                        <option value="all">全等级</option>
+                        <option value="high">高</option>
+                        <option value="medium">中</option>
+                        <option value="low">低</option>
+                    </select>
+                    <select id="newsPricing" class="text-[9px] bg-input border border-theme rounded-md px-1.5 py-1 focus:outline-none" onchange="renderNews(); saveState();">
+                        <option value="all">全定价</option>
+                        <option value="unpriced">未定价</option>
+                        <option value="priced">已定价</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="newsFeed"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: 宏观指标 -->
+    <div class="modal-overlay" id="modal-macro">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-base font-semibold tracking-tight">全部宏观指标</h2>
+                    <p class="text-xs text-muted font-light mt-0.5">共 24 个实时指标</p>
+                </div>
+                <button class="text-2xl text-muted hover:opacity-70 transition" onclick="closeModal('macro')">×</button>
+            </div>
+            <div class="mb-4">
+                <input type="text" placeholder="搜索指标..." class="w-full text-sm bg-input border border-theme rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500">
+            </div>
+            <div class="grid grid-cols-4 gap-2.5" id="moreMacroIndicators"></div>
+        </div>
+    </div>
+
+    <!-- Modal: 图表高级设置 -->
+    <div class="modal-overlay" id="modal-chart">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold tracking-tight">高级图表设置</h2>
+                <button class="text-2xl text-muted hover:opacity-70 transition" onclick="closeModal('chart')">×</button>
+            </div>
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="text-xs text-muted font-medium block mb-2 uppercase tracking-wider">扩展变量库</label>
+                    <div class="space-y-2 max-h-60 overflow-y-auto" id="chartVariableList"></div>
+                </div>
+                <div>
+                    <label class="text-xs text-muted font-medium block mb-2 uppercase tracking-wider">技术指标</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> 移动平均线 (MA20/50/200)</label>
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> 布林带 (Bollinger Bands)</label>
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> RSI (相对强弱指数)</label>
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> MACD</label>
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> 成交量</label>
+                        <label class="flex items-center gap-2 text-sm font-light"><input type="checkbox" class="rounded"> 斐波那契回撤</label>
+                    </div>
+                    <label class="text-xs text-muted font-medium block mb-2 mt-4 uppercase tracking-wider">图表类型</label>
+                    <select class="w-full text-sm bg-input border border-theme rounded-lg px-2 py-1.5 focus:outline-none">
+                        <option>折线图</option><option>蜡烛图</option><option>面积图</option><option>散点图</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: 行业板块 -->
+    <div class="modal-overlay" id="modal-sector">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-base font-semibold tracking-tight">全部行业板块</h2>
+                    <p class="text-xs text-muted font-light mt-0.5">共 24 个行业实时追踪</p>
+                </div>
+                <button class="text-2xl text-muted hover:opacity-70 transition" onclick="closeModal('sector')">×</button>
+            </div>
+            <div class="grid grid-cols-4 gap-2.5" id="moreSectorIndicators"></div>
+        </div>
+    </div>
+
+    <!-- Modal: 新闻订阅 -->
+    <div class="modal-overlay" id="modal-news">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-semibold tracking-tight">新闻源定制</h2>
+                <button class="text-2xl text-muted hover:opacity-70 transition" onclick="closeModal('news')">×</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-muted font-medium uppercase tracking-wider block mb-2">关注行业</label>
+                    <div class="flex flex-wrap gap-2" id="newsSectorTags"></div>
+                </div>
+                <div>
+                    <label class="text-xs text-muted font-medium uppercase tracking-wider block mb-2">关注国家/地区</label>
+                    <div class="flex flex-wrap gap-2" id="newsCountryTags"></div>
+                </div>
+                <div>
+                    <label class="text-xs text-muted font-medium uppercase tracking-wider block mb-2">关键词订阅</label>
+                    <input type="text" placeholder="输入关键词，用逗号分隔，如：美联储, 财报, 并购"
+                        class="w-full text-sm bg-input border border-theme rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs text-muted font-medium uppercase tracking-wider block mb-2">消息来源</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="text-xs px-3 py-1.5 rounded-full bg-blue-500 text-white">一手调研</button>
+                        <button class="text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition">卖方研报</button>
+                        <button class="text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition">监管披露</button>
+                        <button class="text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition">供应链</button>
+                        <button class="text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition">政策解读</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ DATA ============
+        const macroData = {
+            usBond: { name: 'US 10Y', value: 4.120, change: 0.032, unit: '%', upIsGood: false },
+            dxy: { name: 'DXY', value: 103.50, change: 0.45, unit: '', upIsGood: true },
+            globalRates: { name: 'Global Rates', value: 3.85, change: -0.12, unit: '%', upIsGood: false },
+            geoRisk: { name: 'Geo-Pol', value: 68.5, change: 2.3, unit: '', upIsGood: false },
+            gold: { name: 'Gold', value: 2187.40, change: 12.80, unit: '$', upIsGood: true },
+            oil: { name: 'Brent', value: 82.35, change: -0.85, unit: '$', upIsGood: null }
+        };
+        const moreMacroData = {
+            vix: { name: 'VIX', value: 14.2, change: -0.8, unit: '', upIsGood: false },
+            jpy: { name: 'USD/JPY', value: 149.85, change: 0.35, unit: '', upIsGood: null },
+            eur: { name: 'EUR/USD', value: 1.0825, change: -0.0012, unit: '', upIsGood: null },
+            gbp: { name: 'GBP/USD', value: 1.2645, change: 0.0045, unit: '', upIsGood: null },
+            btc: { name: 'Bitcoin', value: 67235, change: 1250, unit: '$', upIsGood: true },
+            eth: { name: 'Ethereum', value: 3520, change: 85, unit: '$', upIsGood: true },
+            copper: { name: 'Copper', value: 4.12, change: 0.05, unit: '$', upIsGood: true },
+            wheat: { name: 'Wheat', value: 545.25, change: -3.5, unit: '¢', upIsGood: null },
+            corn: { name: 'Corn', value: 442.80, change: 2.1, unit: '¢', upIsGood: null },
+            silver: { name: 'Silver', value: 24.35, change: 0.45, unit: '$', upIsGood: true },
+            platinum: { name: 'Platinum', value: 915.60, change: -8.2, unit: '$', upIsGood: true },
+            natgas: { name: 'NatGas', value: 2.85, change: 0.12, unit: '$', upIsGood: null },
+            iron: { name: 'Iron Ore', value: 118.50, change: -2.3, unit: '$', upIsGood: null },
+            lumber: { name: 'Lumber', value: 485.30, change: 15.8, unit: '$', upIsGood: null },
+            spy: { name: 'S&P 500', value: 5123.45, change: 0.85, unit: '', upIsGood: true },
+            ndx: { name: 'Nasdaq', value: 18156.80, change: 1.25, unit: '', upIsGood: true },
+            dji: { name: 'Dow 30', value: 38904.12, change: -0.25, unit: '', upIsGood: true },
+            rty: { name: 'Russell 2000', value: 2084.35, change: 0.45, unit: '', upIsGood: true }
+        };
+        const sectorData = [
+            { name: 'Semiconductors', change: 2.45, ticker: 'SOX' },
+            { name: 'Energy', change: 1.10, ticker: 'XLE' },
+            { name: 'EV & Auto', change: -1.20, ticker: 'EVA' },
+            { name: 'Biotech', change: -0.85, ticker: 'XBI' },
+            { name: 'Cloud', change: 1.65, ticker: 'SKYY' },
+            { name: 'Finance', change: 0.45, ticker: 'XLF' }
+        ];
+        const moreSectorData = [
+            { name: 'Healthcare', change: 0.35, ticker: 'XLV' }, { name: 'Industrials', change: 0.78, ticker: 'XLI' },
+            { name: 'Consumer Disc', change: -0.45, ticker: 'XLY' }, { name: 'Consumer Staples', change: 0.22, ticker: 'XLP' },
+            { name: 'Utilities', change: -0.15, ticker: 'XLU' }, { name: 'Communication', change: 1.05, ticker: 'XLC' },
+            { name: 'Transportation', change: 0.95, ticker: 'IYT' }, { name: 'Aerospace', change: 1.25, ticker: 'ITA' },
+            { name: 'Homebuilders', change: -0.65, ticker: 'XHB' }, { name: 'Regional Banks', change: -1.25, ticker: 'KRE' },
+            { name: 'Retail', change: 0.55, ticker: 'XRT' }, { name: 'Steel', change: 1.85, ticker: 'SLX' },
+            { name: 'Gold Miners', change: 2.15, ticker: 'GDX' }, { name: 'REITs', change: -0.35, ticker: 'XLRE' },
+            { name: 'Software', change: 1.45, ticker: 'IGV' }, { name: 'Cybersecurity', change: 2.25, ticker: 'CIBR' },
+            { name: 'Clean Energy', change: -0.95, ticker: 'ICLN' }, { name: 'Gaming', change: 1.75, ticker: 'BJK' }
+        ];
+        const newsData = [
+            { id: 1, category: 'battery', categoryName: '固态电池', title: '某头部厂商固态电池A样测试良率超预期，量产或提前至Q3', content: '供应链数据显示最新批次良率突变至92%，目前卖方模型尚未调整资本开支预期。尚未定价 (Not Priced-in)。', timestamp: '2小时前', type: 'unpriced', source: 'Supply Chain', confidence: 85, country: 'cn', importance: 'high' },
+            { id: 2, category: 'macro', categoryName: '美联储', title: '非公开会议提及服务业通胀粘性超预期', content: '隔夜 OIS 曲线已完全计入该鹰派预期。已定价 (Priced-in)。', timestamp: '4小时前', type: 'priced', source: 'Policy Watch', confidence: 90, country: 'us', importance: 'high' },
+            { id: 3, category: 'semiconductor', categoryName: '半导体', title: '某AI芯片巨头下修H2出货量指引约15%', content: '渠道调研显示大客户库存去化慢于预期，但卖方共识仍维持原有预测。尚未定价。', timestamp: '5小时前', type: 'unpriced', source: 'Channel Check', confidence: 78, country: 'us', importance: 'high' },
+            { id: 4, category: 'energy', categoryName: '能源', title: 'OPEC+内部会议讨论延长减产至Q4', content: '期货市场价格已反映约70%概率，若兑现将为中性事件。部分定价。', timestamp: '8小时前', type: 'priced', source: 'Energy Intel', confidence: 72, country: 'us', importance: 'medium' },
+            { id: 5, category: 'biotech', categoryName: '生物科技', title: '某GLP-1药物临床试验数据泄露，减重效果优于预期20%', content: '数据尚未经同行评议，但初期泄露已引起机构关注。尚未定价。', timestamp: '12小时前', type: 'unpriced', source: 'Trial Monitor', confidence: 65, country: 'us', importance: 'high' },
+            { id: 6, category: 'macro', categoryName: '中国宏观', title: '政策行窗口指导加大对房企白名单支持', content: '信用市场反应平淡，境外债利差未显著收窄。已定价。', timestamp: '1天前', type: 'priced', source: 'Credit Watch', confidence: 88, country: 'cn', importance: 'medium' },
+            { id: 7, category: 'finance', categoryName: '央行政策', title: '欧洲央行利率决议维持不变，但暗示6月可能降息', content: '拉加德新闻发布会措辞温和，市场计价6月降息概率升至80%。部分定价。', timestamp: '6小时前', type: 'priced', source: 'ECB Watch', confidence: 82, country: 'eu', importance: 'high' },
+            { id: 8, category: 'ev', categoryName: '电动车', title: '某日系车企宣布固态电池合作计划提前至2026年', content: '此前市场预期2027年量产，技术路线选择引发供应链重新评估。尚未定价。', timestamp: '3小时前', type: 'unpriced', source: 'Auto Intel', confidence: 75, country: 'jp', importance: 'medium' },
+            { id: 9, category: 'ai', categoryName: '人工智能', title: '某科技巨头下一代AI训练集群规模扩大10倍', content: '内部文件显示 capex 规划远超华尔街预期，但产能受限。尚未定价。', timestamp: '1小时前', type: 'unpriced', source: 'Supply Chain', confidence: 80, country: 'us', importance: 'high' },
+            { id: 10, category: 'semiconductor', categoryName: '半导体设备', title: '光刻机龙头暗示High-NA EUV订单超预期', content: '设备交付周期延长至18个月，产能瓶颈明显。部分定价。', timestamp: '4小时前', type: 'priced', source: 'Equipment Intel', confidence: 85, country: 'eu', importance: 'medium' },
+            { id: 11, category: 'finance', categoryName: '银行业', title: '某大型投行Q1交易收入料将同比下降30%', content: '固收交易部门表现疲弱，但投行费用收入超预期。部分定价。', timestamp: '7小时前', type: 'priced', source: 'Trading Desk', confidence: 78, country: 'us', importance: 'medium' },
+            { id: 12, category: 'energy', categoryName: '新能源', title: '美国IRA补贴细则修订，光伏组件本土化比例上调', content: '东南亚制造商面临关税不确定性，供应链正在重新布局。尚未定价。', timestamp: '10小时前', type: 'unpriced', source: 'Policy Watch', confidence: 88, country: 'us', importance: 'high' },
+            { id: 13, category: 'biotech', categoryName: '医药并购', title: '某大型药企接近以450亿美元收购肿瘤药公司', content: '谈判进入最后阶段，溢价约35%。尚未正式披露。尚未定价。', timestamp: '30分钟前', type: 'unpriced', source: 'M&A Desk', confidence: 70, country: 'us', importance: 'high' },
+            { id: 14, category: 'macro', categoryName: '日本宏观', title: '日央行据称讨论3月结束负利率政策', content: '春斗薪资谈判结果强劲，为政策正常化创造条件。部分定价。', timestamp: '5小时前', type: 'priced', source: 'BOJ Watch', confidence: 85, country: 'jp', importance: 'high' },
+            { id: 15, category: 'semiconductor', categoryName: '存储芯片', title: 'DRAM合约价Q2涨幅料将达20%，超预期', content: 'AI服务器需求爆发导致HBM产能挤占。卖方模型未完全反映。尚未定价。', timestamp: '3小时前', type: 'unpriced', source: 'Memory Watch', confidence: 82, country: 'us', importance: 'medium' },
+            { id: 16, category: 'ev', categoryName: '充电网络', title: '某充电运营商与车企联盟达成独家合作协议', content: '覆盖全美80%高速路段，将改变行业竞争格局。尚未定价。', timestamp: '6小时前', type: 'unpriced', source: 'EV Network', confidence: 75, country: 'us', importance: 'medium' },
+            { id: 17, category: 'finance', categoryName: '加密货币', title: 'SEC内部文件暗示以太坊ETF批准概率上升', content: '监管层态度软化，多家机构已提交修正申请。部分定价。', timestamp: '2小时前', type: 'priced', source: 'Crypto Watch', confidence: 72, country: 'us', importance: 'medium' },
+            { id: 18, category: 'ai', categoryName: '算力芯片', title: '某云厂商自研AI芯片性能比肩主流GPU', content: '内部测试显示推理效率提升40%，将减少对第三方依赖。尚未定价。', timestamp: '8小时前', type: 'unpriced', source: 'Cloud Intel', confidence: 68, country: 'us', importance: 'high' },
+            { id: 19, category: 'macro', categoryName: '中国政策', title: '特别国债发行计划提前至二季度启动', content: '规模预计达1万亿元，用于设备更新和以旧换新。部分定价。', timestamp: '1天前', type: 'priced', source: 'Fiscal Watch', confidence: 90, country: 'cn', importance: 'medium' },
+            { id: 20, category: 'energy', categoryName: '石油', title: '美国战略石油储备补库计划重启', content: '计划在WTI低于80美元时采购1200万桶。部分定价。', timestamp: '12小时前', type: 'priced', source: 'SPR Watch', confidence: 85, country: 'us', importance: 'low' },
+            { id: 21, category: 'semiconductor', categoryName: '芯片设计', title: '某手机芯片设计公司获旗舰机型大单', content: '市占率有望从15%提升至35%。尚未定价。', timestamp: '4小时前', type: 'unpriced', source: 'Design Win', confidence: 78, country: 'cn', importance: 'medium' },
+            { id: 22, category: 'biotech', categoryName: '基因治疗', title: '某基因编辑疗法FDA审批进度超预期', content: 'PDUFA日期可能提前3个月，竞争格局有利。尚未定价。', timestamp: '6小时前', type: 'unpriced', source: 'FDA Watch', confidence: 72, country: 'us', importance: 'high' },
+            { id: 23, category: 'finance', categoryName: '商业地产', title: '某大型REIT办公楼资产减值测试触发', content: '写字楼空置率创20年新高，账面价值可能下调15%。部分定价。', timestamp: '1天前', type: 'priced', source: 'Property Watch', confidence: 82, country: 'us', importance: 'medium' },
+            { id: 24, category: 'ai', categoryName: '大模型', title: '某开源模型厂商B轮融资估值达180亿美元', content: '战略投资者包括多家云厂商，商业化路径清晰。尚未定价。', timestamp: '9小时前', type: 'unpriced', source: 'VC Intel', confidence: 75, country: 'us', importance: 'medium' }
+        ];
+
+        // ============ STATE ============
+        let currentTheme = 'dark';
+        let currentPeriods = ['1Y', '1Y', '1Y'];
+        let chartInstances = [null, null, null];
+
+        const DEFAULT_STATE = {
+            theme: 'dark',
+            charts: [
+                { x: 'gold', y: 'dxy', period: '1Y' },
+                { x: 'bond', y: 'rates', period: '1Y' },
+                { x: 'oil', y: 'geo', period: '1Y' }
+            ],
+            newsFilters: { category: 'all', country: 'all', importance: 'all', pricing: 'all' }
+        };
+
+        // ============ STORAGE ============
+        function saveState() {
+            const state = {
+                theme: currentTheme,
+                charts: [1, 2, 3].map(i => ({
+                    x: document.getElementById(`xVar${i}`)?.value || DEFAULT_STATE.charts[i-1].x,
+                    y: document.getElementById(`yVar${i}`)?.value || DEFAULT_STATE.charts[i-1].y,
+                    period: currentPeriods[i-1]
+                })),
+                newsFilters: {
+                    category: document.getElementById('newsCategory')?.value || 'all',
+                    country: document.getElementById('newsCountry')?.value || 'all',
+                    importance: document.getElementById('newsImportance')?.value || 'all',
+                    pricing: document.getElementById('newsPricing')?.value || 'all'
+                }
+            };
+            try { localStorage.setItem('alpha_state_v2', JSON.stringify(state)); } catch(e) {}
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem('alpha_state_v2');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    return {
+                        ...DEFAULT_STATE,
+                        ...parsed,
+                        charts: parsed.charts || DEFAULT_STATE.charts,
+                        newsFilters: { ...DEFAULT_STATE.newsFilters, ...(parsed.newsFilters || {}) }
+                    };
+                }
+            } catch(e) {}
+            return DEFAULT_STATE;
+        }
+
+        function applyState(state) {
+            // Apply theme
+            const app = document.getElementById('app');
+            app.classList.remove('theme-dark', 'theme-light');
+            app.classList.add(`theme-${state.theme}`);
+            currentTheme = state.theme;
+            if (state.theme === 'light') {
+                document.getElementById('themeToggle').classList.add('active');
+            } else {
+                document.getElementById('themeToggle').classList.remove('active');
+            }
+
+            // Apply chart states
+            state.charts.forEach((c, idx) => {
+                const i = idx + 1;
+                const xSel = document.getElementById(`xVar${i}`);
+                const ySel = document.getElementById(`yVar${i}`);
+                if (xSel) xSel.value = c.x;
+                if (ySel) ySel.value = c.y;
+                currentPeriods[idx] = c.period || '1Y';
+                document.querySelectorAll(`.period-btn[data-chart="${i}"]`).forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.period === currentPeriods[idx]);
+                });
+            });
+
+            // Apply news filters
+            const f = state.newsFilters || {};
+            if (f.category) document.getElementById('newsCategory').value = f.category;
+            if (f.country) document.getElementById('newsCountry').value = f.country;
+            if (f.importance) document.getElementById('newsImportance').value = f.importance;
+            if (f.pricing) document.getElementById('newsPricing').value = f.pricing;
+        }
+
+        // ============ THEME ============
+        function toggleTheme() {
+            const app = document.getElementById('app');
+            const toggle = document.getElementById('themeToggle');
+            if (currentTheme === 'dark') {
+                app.classList.replace('theme-dark', 'theme-light');
+                toggle.classList.add('active');
+                currentTheme = 'light';
+            } else {
+                app.classList.replace('theme-light', 'theme-dark');
+                toggle.classList.remove('active');
+                currentTheme = 'dark';
+            }
+            [1, 2, 3].forEach(i => updateChart(i));
+            renderSectorIndicators();
+            saveState();
+        }
+
+        // ============ TIME SERIES ============
+        function generateTimeSeries(variable, days) {
+            const baseValues = { gold: 2100, dxy: 102, bond: 4.0, rates: 3.8, oil: 80, geo: 65 };
+            const volatility = { gold: 15, dxy: 0.8, bond: 0.15, rates: 0.12, oil: 2.5, geo: 5 };
+            let value = baseValues[variable] || 100;
+            const vol = volatility[variable] || 1;
+            const data = [];
+            const now = new Date();
+            for (let i = days; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                value += (Math.random() - 0.5) * vol;
+                data.push({ date: date.toISOString().split('T')[0], value });
+            }
+            return data;
+        }
+
+        function normalizeData(data) {
+            const values = data.map(d => d.value);
+            const min = Math.min(...values), max = Math.max(...values);
+            const range = max - min || 1;
+            return data.map(d => ({ ...d, value: ((d.value - min) / range) * 100 }));
+        }
+
+        function calculateCorrelation(xData, yData) {
+            const n = Math.min(xData.length, yData.length);
+            const x = xData.slice(-n).map(d => d.value);
+            const y = yData.slice(-n).map(d => d.value);
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + b, 0);
+            const sumXY = x.reduce((t, xi, i) => t + xi * y[i], 0);
+            const sumX2 = x.reduce((t, xi) => t + xi * xi, 0);
+            const sumY2 = y.reduce((t, yi) => t + yi * yi, 0);
+            const num = n * sumXY - sumX * sumY;
+            const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            return den === 0 ? 0 : num / den;
+        }
+
+        // ============ MACRO RENDER ============
+        function renderMacroIndicators() {
+            const container = document.getElementById('macroIndicators');
+            container.innerHTML = '';
+            Object.entries(macroData).forEach(([key, data]) => {
+                const isPos = data.change > 0;
+                const changeColor = isPos
+                    ? (data.upIsGood === false ? 'text-red-500' : 'text-green-500')
+                    : (data.upIsGood === false ? 'text-green-500' : 'text-red-500');
+                const card = document.createElement('div');
+                card.className = 'p-2.5 rounded-xl border border-theme hover-theme transition cursor-pointer';
+                card.innerHTML = `
+                    <div class="text-[9px] text-muted uppercase tracking-wider mb-1 font-medium">${data.name}</div>
+                    <div class="text-sm font-light tabular-nums">${data.unit}${data.value.toFixed(2)}</div>
+                    <div class="text-[10px] ${changeColor} font-medium tabular-nums">${isPos ? '↑' : '↓'} ${Math.abs(data.change).toFixed(2)}%</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ============ SECTOR RENDER ============
+        function renderSectorIndicators() {
+            const container = document.getElementById('sectorIndicators');
+            container.innerHTML = '';
+            sectorData.forEach(sector => {
+                const isPos = sector.change > 0;
+                const changeColor = isPos ? 'text-green-500' : 'text-red-500';
+                const bgClass = currentTheme === 'dark' ? 'bg-zinc-800' : 'bg-gray-100';
+                const card = document.createElement('div');
+                card.className = 'p-2.5 rounded-xl border border-theme hover-theme transition';
+                card.innerHTML = `
+                    <div class="text-[10px] font-medium truncate mb-1">${sector.name}</div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] text-muted font-light">${sector.ticker}</span>
+                        <span class="text-xs ${changeColor} font-medium tabular-nums">${isPos ? '+' : ''}${sector.change.toFixed(2)}%</span>
+                    </div>
+                    <div class="w-full ${bgClass} rounded-full h-0.5 mt-1.5">
+                        <div class="h-0.5 rounded-full ${isPos ? 'bg-green-500' : 'bg-red-500'}" style="width:${Math.min(Math.abs(sector.change)*20,100)}%"></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ============ CHART UPDATE ============
+        function updateChart(idx) {
+            const xVar = document.getElementById(`xVar${idx}`)?.value;
+            const yVar = document.getElementById(`yVar${idx}`)?.value;
+            if (!xVar || !yVar) return;
+
+            const period = currentPeriods[idx - 1];
+            const days = { '1D': 1, '1M': 30, '1Y': 365, '10Y': 3650 }[period] || 365;
+
+            const xRaw = generateTimeSeries(xVar, days);
+            const yRaw = generateTimeSeries(yVar, days);
+            const xNorm = normalizeData(xRaw);
+            const yNorm = normalizeData(yRaw);
+            const corr = calculateCorrelation(xRaw, yRaw);
+
+            const corrEl = document.getElementById(`corr${idx}`);
+            if (corrEl) {
+                const sign = corr >= 0 ? '+' : '';
+                corrEl.textContent = `r=${sign}${corr.toFixed(2)}`;
+                corrEl.className = `text-[9px] font-semibold flex-shrink-0 ml-0.5 ${corr >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            }
+
+            const canvas = document.getElementById(`chart${idx}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const isDark = currentTheme === 'dark';
+            const textColor = isDark ? '#636366' : '#8e8e93';
+            const gridColor = isDark ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.04)';
+
+            if (chartInstances[idx - 1]) chartInstances[idx - 1].destroy();
+
+            const varNames = { gold: 'Gold', dxy: 'DXY', bond: 'Bond', rates: 'Rates', oil: 'Oil', geo: 'Geo' };
+            const xOrig = xRaw.map(d => d.value);
+            const yOrig = yRaw.map(d => d.value);
+            const xRange = { min: Math.min(...xOrig), max: Math.max(...xOrig) };
+            const yRange = { min: Math.min(...yOrig), max: Math.max(...yOrig) };
+
+            chartInstances[idx - 1] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: xNorm.map((d, i) => {
+                        if (period === '1D') return i.toString();
+                        if (period === '1M') return d.date.slice(5, 10);
+                        return d.date.slice(0, 7);
+                    }),
+                    datasets: [
+                        {
+                            label: varNames[xVar],
+                            data: xNorm.map(d => d.value),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.04)',
+                            fill: true, tension: 0.4, borderWidth: 1.5,
+                            pointRadius: 0, pointHoverRadius: 3,
+                            originalRange: xRange
+                        },
+                        {
+                            label: varNames[yVar],
+                            data: yNorm.map(d => d.value),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239,68,68,0.04)',
+                            fill: true, tension: 0.4, borderWidth: 1.5,
+                            pointRadius: 0, pointHoverRadius: 3,
+                            originalRange: yRange
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: isDark ? 'rgba(18,18,20,0.94)' : 'rgba(255,255,255,0.94)',
+                            titleColor: isDark ? '#f5f5f7' : '#1c1c1e',
+                            bodyColor: textColor,
+                            borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+                            borderWidth: 1, padding: 8, cornerRadius: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    const range = context.dataset.originalRange;
+                                    if (range) {
+                                        const orig = (context.parsed.y / 100) * (range.max - range.min) + range.min;
+                                        return `${context.dataset.label}: ${orig.toFixed(2)}`;
+                                    }
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: gridColor, drawBorder: false },
+                            ticks: { color: textColor, font: { size: 8 }, maxTicksLimit: 3, maxRotation: 0 }
+                        },
+                        y: { display: false, min: -5, max: 105 }
+                    }
+                }
+            });
+        }
+
+        function changePeriod(chartIdx, period) {
+            currentPeriods[chartIdx - 1] = period;
+            document.querySelectorAll(`.period-btn[data-chart="${chartIdx}"]`).forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.period === period);
+            });
+            updateChart(chartIdx);
+            saveState();
+        }
+
+        // ============ NEWS RENDER ============
+        function renderNews() {
+            const container = document.getElementById('newsFeed');
+            const cat = document.getElementById('newsCategory').value;
+            const country = document.getElementById('newsCountry').value;
+            const imp = document.getElementById('newsImportance').value;
+            const pricing = document.getElementById('newsPricing').value;
+
+            const filtered = newsData.filter(n => {
+                if (cat !== 'all' && n.category !== cat) return false;
+                if (country !== 'all' && n.country !== country) return false;
+                if (imp !== 'all' && n.importance !== imp) return false;
+                if (pricing !== 'all' && n.type !== pricing) return false;
+                return true;
+            });
+
+            document.getElementById('unreadCount').textContent = filtered.filter(n => n.type === 'unpriced').length;
+            const impMap = { high: '高', medium: '中', low: '低' };
+
+            container.innerHTML = '';
+            filtered.forEach(news => {
+                const dotColor = news.type === 'unpriced' ? 'bg-red-500' : 'bg-zinc-500';
+                const typeClass = news.type === 'unpriced' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-500/10 text-muted';
+                const card = document.createElement('div');
+                card.className = 'group cursor-pointer p-2.5 rounded-xl border border-theme hover-theme transition fade-in';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-1.5 h-1.5 rounded-full ${dotColor} flex-shrink-0"></div>
+                            <span class="text-[9px] text-muted uppercase tracking-wider font-medium">${news.categoryName}</span>
+                            <span class="text-[9px] text-muted font-light">· ${impMap[news.importance]}</span>
+                        </div>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-md font-medium ${typeClass}">${news.type === 'unpriced' ? '未定价' : '已定价'}</span>
+                    </div>
+                    <h3 class="text-[11px] font-medium mb-1 group-hover:opacity-75 transition leading-snug line-clamp-2 tracking-tight">${news.title}</h3>
+                    <p class="text-[10px] text-muted leading-relaxed mb-1.5 line-clamp-2 font-light">${news.content}</p>
+                    <div class="flex justify-between items-center text-[9px] text-muted">
+                        <span class="font-light">${news.source} · ${news.timestamp}</span>
+                        <span class="font-medium tabular-nums">${news.confidence}%</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted text-xs py-8 font-light">暂无符合条件的情报</div>';
+            }
+        }
+
+        // ============ MODALS ============
+        function openModal(type) {
+            document.getElementById(`modal-${type}`).classList.add('active');
+
+            if (type === 'macro') {
+                const container = document.getElementById('moreMacroIndicators');
+                container.innerHTML = '';
+                Object.entries(moreMacroData).forEach(([key, data]) => {
+                    const isPos = data.change > 0;
+                    const changeColor = isPos ? 'text-green-500' : 'text-red-500';
+                    const card = document.createElement('div');
+                    card.className = 'p-3 rounded-xl border border-theme hover-theme transition cursor-pointer';
+                    card.innerHTML = `
+                        <div class="text-[9px] text-muted uppercase tracking-wider mb-1 font-medium">${data.name}</div>
+                        <div class="text-base font-light tabular-nums">${data.unit}${data.value.toFixed(2)}</div>
+                        <div class="text-[10px] ${changeColor} font-medium tabular-nums">${isPos ? '↑' : '↓'} ${Math.abs(data.change).toFixed(2)}%</div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            if (type === 'chart') {
+                const container = document.getElementById('chartVariableList');
+                container.innerHTML = '';
+                const variables = [
+                    { key: 'gold', name: '黄金价格' }, { key: 'dxy', name: '美元指数' },
+                    { key: 'bond', name: '美债价格' }, { key: 'rates', name: '全球利率' },
+                    { key: 'oil', name: '石油价格' }, { key: 'geo', name: '地缘政治风险' },
+                    { key: 'vix', name: 'VIX波动率' }, { key: 'btc', name: '比特币' },
+                    { key: 'copper', name: '铜价' }, { key: 'spy', name: 'S&P 500' },
+                    { key: 'ndx', name: '纳斯达克' }, { key: 'eur', name: '欧元/美元' }
+                ];
+                variables.forEach(v => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center gap-2 text-sm font-light cursor-pointer hover-theme rounded-lg px-2 py-1 transition';
+                    label.innerHTML = `<input type="checkbox" class="rounded" value="${v.key}"> ${v.name}`;
+                    container.appendChild(label);
+                });
+            }
+
+            if (type === 'sector') {
+                const container = document.getElementById('moreSectorIndicators');
+                container.innerHTML = '';
+                moreSectorData.forEach(sector => {
+                    const isPos = sector.change > 0;
+                    const changeColor = isPos ? 'text-green-500' : 'text-red-500';
+                    const bgClass = currentTheme === 'dark' ? 'bg-zinc-800' : 'bg-gray-100';
+                    const card = document.createElement('div');
+                    card.className = 'p-3 rounded-xl border border-theme hover-theme transition';
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[10px] font-medium">${sector.name}</span>
+                            <span class="text-[9px] text-muted font-light">${sector.ticker}</span>
+                        </div>
+                        <div class="text-sm ${changeColor} font-medium tabular-nums">${isPos ? '+' : ''}${sector.change.toFixed(2)}%</div>
+                        <div class="w-full ${bgClass} rounded-full h-0.5 mt-1.5">
+                            <div class="h-0.5 rounded-full ${isPos ? 'bg-green-500' : 'bg-red-500'}" style="width:${Math.min(Math.abs(sector.change)*20,100)}%"></div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            if (type === 'news') {
+                const sectorContainer = document.getElementById('newsSectorTags');
+                const countryContainer = document.getElementById('newsCountryTags');
+                sectorContainer.innerHTML = '';
+                [{ key: 'macro', name: '宏观经济' }, { key: 'semiconductor', name: '半导体' },
+                 { key: 'energy', name: '能源' }, { key: 'ev', name: '电动车' },
+                 { key: 'biotech', name: '生物科技' }, { key: 'finance', name: '金融' },
+                 { key: 'ai', name: '人工智能' }, { key: 'policy', name: '政策监管' }
+                ].forEach(s => {
+                    const tag = document.createElement('button');
+                    tag.className = 'text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition font-light';
+                    tag.textContent = s.name;
+                    tag.onclick = function() { this.classList.toggle('bg-blue-500'); this.classList.toggle('text-white'); };
+                    sectorContainer.appendChild(tag);
+                });
+                countryContainer.innerHTML = '';
+                [{ key: 'us', name: '美国' }, { key: 'cn', name: '中国' },
+                 { key: 'eu', name: '欧洲' }, { key: 'jp', name: '日本' }
+                ].forEach(c => {
+                    const tag = document.createElement('button');
+                    tag.className = 'text-xs px-3 py-1.5 rounded-full border border-theme hover-theme transition font-light';
+                    tag.textContent = c.name;
+                    tag.onclick = function() { this.classList.toggle('bg-blue-500'); this.classList.toggle('text-white'); };
+                    countryContainer.appendChild(tag);
+                });
+            }
+        }
+
+        function closeModal(type) {
+            document.getElementById(`modal-${type}`).classList.remove('active');
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal(this.id.replace('modal-', ''));
+                }
+            });
+        });
+
+        function updateTime() {
+            document.getElementById('lastUpdate').textContent = `更新于 ${new Date().toTimeString().split(' ')[0]}`;
+        }
+
+        // ============ INIT ============
+        document.addEventListener('DOMContentLoaded', function() {
+            const state = loadState();
+            applyState(state);
+
+            renderMacroIndicators();
+            renderSectorIndicators();
+            renderNews();
+            [1, 2, 3].forEach(i => updateChart(i));
+            updateTime();
+
+            setInterval(updateTime, 1000);
+            setInterval(() => {
+                Object.keys(macroData).forEach(key => {
+                    const change = (Math.random() - 0.5) * 0.01;
+                    macroData[key].value += macroData[key].value * change;
+                    macroData[key].change = change * 100;
+                });
+                renderMacroIndicators();
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

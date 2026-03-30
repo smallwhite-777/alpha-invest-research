@@ -1,0 +1,220 @@
+{
+  "query": "中煤能源这两年的财务业绩怎么样",
+  "entity": "中煤能源",
+  "stock_code": "601898",
+  "intent": "financial_analysis",
+  "time_range": [
+    "2024",
+    "2023"
+  ],
+  "financial_summary": {
+    "营业收入": {
+      "2021": "2021",
+      "2024": "2024",
+      "2016": "2016",
+      "2006": "07",
+      "2020": "2020",
+      "2019": "2.98"
+    },
+    "净利润": {
+      "2024": "2024",
+      "2016": "2016",
+      "2006": "07",
+      "2020": "2",
+      "2019": "2019",
+      "2018": "2018"
+    },
+    "归母净利润": {
+      "2024": "2024"
+    },
+    "营收": {
+      "2021": "2021",
+      "2020": "2",
+      "2019": "2019",
+      "2016": "1",
+      "2017": "2017",
+      "2009": "93",
+      "2010": "1",
+      "2011": "2"
+    },
+    "总资产": {
+      "2020": "2020",
+      "2019": "2019",
+      "2015": "78.1",
+      "2007": "2007",
+      "2021": "10.1"
+    },
+    "净资产": {
+      "2019": "2",
+      "2020": "50"
+    },
+    "ROE": {
+      "2019": "4",
+      "2020": "2020"
+    }
+  },
+  "profitability_analysis": {
+    "毛利率": {
+      "2019": "55",
+      "2024": "2024",
+      "2020": "2020",
+      "2016": "2016",
+      "2006": "07"
+    },
+    "同比": {
+      "2025": "2025",
+      "2027": "2027",
+      "2015": "1",
+      "2017": "2017"
+    },
+    "环比": {
+      "2022": "2022",
+      "2024": "2024",
+      "2025": "75",
+      "2014": "6"
+    },
+    "净利率": {
+      "2024": "2024",
+      "2020": "5.5"
+    },
+    "期间费用率": {
+      "2024": "2024",
+      "2020": "5.5"
+    },
+    "财务费用率": {
+      "2020": "2020",
+      "2024": "30"
+    },
+    "trend_analysis_available": true
+  },
+  "cashflow_analysis": {
+    "自由现金流": {
+      "2024": "2024",
+      "2027": "110",
+      "2025": "2025",
+      "2016": "2016",
+      "2012": "2012",
+      "2020": "2020",
+      "2023": "2023",
+      "2013": "2013",
+      "2018": "2018",
+      "2021": "2021",
+      "2010": "3",
+      "2022": "3",
+      "2000": ""
+    },
+    "经营活动产生的现金流量净额": {
+      "2010": "3",
+      "2022": "3",
+      "2000": ""
+    },
+    "投资活动现金流": {
+      "2000": "",
+      "2010": "3",
+      "2022": "3"
+    },
+    "cashflow_quality_analyzed": true
+  },
+  "business_structure": {},
+  "management_outlook": {},
+  "valuation_analysis": {},
+  "risk_assessment": {},
+  "industry_comparison": {},
+  "cross_validated_metrics": [
+    {
+      "metric_name": "营业收入",
+      "values": {
+        "2021": "2021",
+        "2024": "2024",
+        "2016": "2016",
+        "2006": "07",
+        "2020": "2020",
+        "2019": "2.98"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 1.0,
+      "notes": "Extracted from financial_data"
+    },
+    {
+      "metric_name": "净利润",
+      "values": {
+        "2024": "2024",
+        "2016": "2016",
+        "2006": "07",
+        "2020": "2",
+        "2019": "2019",
+        "2018": "2018"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 1.0,
+      "notes": "Extracted from financial_data"
+    },
+    {
+      "metric_name": "ROE",
+      "values": {
+        "2019": "4",
+        "2020": "2020"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 1.0,
+      "notes": "Extracted from financial_data"
+    },
+    {
+      "metric_name": "毛利率",
+      "values": {
+        "2019": "55",
+        "2024": "2024",
+        "2020": "2020",
+        "2016": "2016",
+        "2006": "07"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 1.0,
+      "notes": "Extracted from profitability"
+    },
+    {
+      "metric_name": "净利率",
+      "values": {
+        "2024": "2024",
+        "2020": "5.5"
+      },
+      "sources": [
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+        "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md"
+      ],
+      "confidence": 1.0,
+      "notes": "Extracted from profitability"
+    }
+  ],
+  "year_over_year_comparison": {},
+  "source_files": [
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Financial Reports\\中煤能源-601898.SH\\中煤能源-601898.SH-2024.txt",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\deep_research_report_2026-03-24_highquality.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\analysis_whitepaper.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\Reserach Reports\\中国中煤能源股份有限公司_601898.SH\\history.jsonl",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdown\\2247532225_4_中金 _ 银行年报的三个关键词：营收增长、报表出清、布局新机遇.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdown\\2247488622_1_6月经济数据前瞻：生产同比增速小幅回升，金融条件趋稳.md",
+    "D:\\投研web 3\\投研网站 3\\Knowledgebase\\News\\markdownhuatai\\2649802667_3_华泰 _ 金工：价值投资新篇 - 首批自由现金流ETF问世.md"
+  ],
+  "overall_confidence": 0.9090909090909092,
+  "data_quality_score": 0.8666666666666667,
+  "generation_timestamp": "2026-03-27T08:20:14.910514",
+  "formatted_report": "# 中煤能源 投资分析报告\n\n**分析时间范围**: 2024, 2023\n**数据置信度**: 91%\n**数据质量评分**: 87%\n\n## 一、核心财务数据\n- **营业收入**:\n  - 2021: 2021\n  - 2024: 2024\n  - 2016: 2016\n  - 2006: 07\n  - 2020: 2020\n  - 2019: 2.98\n- **净利润**:\n  - 2024: 2024\n  - 2016: 2016\n  - 2006: 07\n  - 2020: 2\n  - 2019: 2019\n  - 2018: 2018\n- **归母净利润**:\n  - 2024: 2024\n- **营收**:\n  - 2021: 2021\n  - 2020: 2\n  - 2019: 2019\n  - 2016: 1\n  - 2017: 2017\n  - 2009: 93\n  - 2010: 1\n  - 2011: 2\n- **总资产**:\n  - 2020: 2020\n  - 2019: 2019\n  - 2015: 78.1\n  - 2007: 2007\n  - 2021: 10.1\n- **净资产**:\n  - 2019: 2\n  - 2020: 50\n- **ROE**:\n  - 2019: 4\n  - 2020: 2020\n\n## 三、盈利能力分析\n- **毛利率**:\n  - 2019: 55\n  - 2024: 2024\n  - 2020: 2020\n  - 2016: 2016\n  - 2006: 07\n- **同比**:\n  - 2025: 2025\n  - 2027: 2027\n  - 2015: 1\n  - 2017: 2017\n- **环比**:\n  - 2022: 2022\n  - 2024: 2024\n  - 2025: 75\n  - 2014: 6\n- **净利率**:\n  - 2024: 2024\n  - 2020: 5.5\n- **期间费用率**:\n  - 2024: 2024\n  - 2020: 5.5\n- **财务费用率**:\n  - 2020: 2020\n  - 2024: 30\n- **trend_analysis_available**: True\n\n## 四、现金流分析\n- **自由现金流**:\n  - 2024: 2024\n  - 2027: 110\n  - 2025: 2025\n  - 2016: 2016\n  - 2012: 2012\n  - 2020: 2020\n  - 2023: 2023\n  - 2013: 2013\n  - 2018: 2018\n  - 2021: 2021\n  - 2010: 3\n  - 2022: 3\n  - 2000: \n- **经营活动产生的现金流量净额**:\n  - 2010: 3\n  - 2022: 3\n  - 2000: \n- **投资活动现金流**:\n  - 2000: \n  - 2010: 3\n  - 2022: 3\n- **cashflow_quality_analyzed**: True\n\n---\n## 数据来源\n1. 中煤能源-601898.SH-2024.txt\n2. deep_research_report_2026-03-24_highquality.md\n3. analysis_whitepaper.md\n4. history.jsonl\n5. 2247532225_4_中金 _ 银行年报的三个关键词：营收增长、报表出清、布局新机遇.md\n\n*报告生成时间: 2026-03-27T08:20:14.910514*"
+}

@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# uploads
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # dependencies
 /node_modules
 /.pnp
@@ -39,3 +43,39 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# Large knowledge base files - use cloud storage
+/Knowledgebase/
+/daily_quote_by_code_csv/
+/Reserach Reports/
+/News/
+/Financial Reports/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Database files
+*.db
+dev.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/
+.workbuddy/
+
+# Temporary files
+*.tmp
+*.temp
+debug_api_output.txt
+test_results*.json
+*.bat

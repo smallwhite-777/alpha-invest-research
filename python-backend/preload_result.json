@@ -1,0 +1,414 @@
+{
+  "success": [
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "industry": "白酒",
+      "records": 27
+    },
+    {
+      "code": "000858",
+      "name": "五粮液",
+      "industry": "白酒",
+      "records": 30
+    },
+    {
+      "code": "000568",
+      "name": "泸州老窖",
+      "industry": "白酒",
+      "records": 34
+    },
+    {
+      "code": "002304",
+      "name": "洋河股份",
+      "industry": "白酒",
+      "records": 20
+    },
+    {
+      "code": "000799",
+      "name": "酒鬼酒",
+      "industry": "白酒",
+      "records": 31
+    },
+    {
+      "code": "600809",
+      "name": "山西汾酒",
+      "industry": "白酒",
+      "records": 35
+    },
+    {
+      "code": "601398",
+      "name": "工商银行",
+      "industry": "银行",
+      "records": 23
+    },
+    {
+      "code": "601288",
+      "name": "农业银行",
+      "industry": "银行",
+      "records": 18
+    },
+    {
+      "code": "601939",
+      "name": "建设银行",
+      "industry": "银行",
+      "records": 26
+    },
+    {
+      "code": "601988",
+      "name": "中国银行",
+      "industry": "银行",
+      "records": 22
+    },
+    {
+      "code": "600036",
+      "name": "招商银行",
+      "industry": "银行",
+      "records": 27
+    },
+    {
+      "code": "601166",
+      "name": "兴业银行",
+      "industry": "银行",
+      "records": 23
+    },
+    {
+      "code": "600000",
+      "name": "浦发银行",
+      "industry": "银行",
+      "records": 29
+    },
+    {
+      "code": "601818",
+      "name": "光大银行",
+      "industry": "银行",
+      "records": 20
+    },
+    {
+      "code": "600016",
+      "name": "民生银行",
+      "industry": "银行",
+      "records": 28
+    },
+    {
+      "code": "000001",
+      "name": "平安银行",
+      "industry": "银行",
+      "records": 37
+    },
+    {
+      "code": "601318",
+      "name": "中国平安",
+      "industry": "保险",
+      "records": 23
+    },
+    {
+      "code": "601601",
+      "name": "中国太保",
+      "industry": "保险",
+      "records": 22
+    },
+    {
+      "code": "601628",
+      "name": "中国人寿",
+      "industry": "保险",
+      "records": 23
+    },
+    {
+      "code": "601336",
+      "name": "新华保险",
+      "industry": "保险",
+      "records": 18
+    },
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "industry": "新能源",
+      "records": 12
+    },
+    {
+      "code": "002594",
+      "name": "比亚迪",
+      "industry": "新能源",
+      "records": 18
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "industry": "电力",
+      "records": 25
+    },
+    {
+      "code": "601012",
+      "name": "隆基绿能",
+      "industry": "新能源",
+      "records": 18
+    },
+    {
+      "code": "002460",
+      "name": "赣锋锂业",
+      "industry": "新能源",
+      "records": 18
+    },
+    {
+      "code": "002475",
+      "name": "立讯精密",
+      "industry": "电子",
+      "records": 18
+    },
+    {
+      "code": "000333",
+      "name": "美的集团",
+      "industry": "家电",
+      "records": 19
+    },
+    {
+      "code": "000651",
+      "name": "格力电器",
+      "industry": "家电",
+      "records": 32
+    },
+    {
+      "code": "600690",
+      "name": "海尔智家",
+      "industry": "家电",
+      "records": 36
+    },
+    {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "industry": "医药",
+      "records": 29
+    },
+    {
+      "code": "000538",
+      "name": "云南白药",
+      "industry": "医药",
+      "records": 35
+    },
+    {
+      "code": "600196",
+      "name": "复星医药",
+      "industry": "医药",
+      "records": 31
+    },
+    {
+      "code": "002007",
+      "name": "华兰生物",
+      "industry": "医药",
+      "records": 25
+    },
+    {
+      "code": "300760",
+      "name": "迈瑞医疗",
+      "industry": "医药",
+      "records": 11
+    },
+    {
+      "code": "300122",
+      "name": "智飞生物",
+      "industry": "医药",
+      "records": 18
+    },
+    {
+      "code": "002415",
+      "name": "海康威视",
+      "industry": "科技",
+      "records": 19
+    },
+    {
+      "code": "000725",
+      "name": "京东方A",
+      "industry": "科技",
+      "records": 31
+    },
+    {
+      "code": "002475",
+      "name": "立讯精密",
+      "industry": "科技",
+      "records": 18
+    },
+    {
+      "code": "600588",
+      "name": "用友网络",
+      "industry": "科技",
+      "records": 27
+    },
+    {
+      "code": "000895",
+      "name": "双汇发展",
+      "industry": "食品",
+      "records": 31
+    },
+    {
+      "code": "600887",
+      "name": "伊利股份",
+      "industry": "食品",
+      "records": 33
+    },
+    {
+      "code": "000568",
+      "name": "洋河股份",
+      "industry": "食品",
+      "records": 34
+    },
+    {
+      "code": "600309",
+      "name": "万华化学",
+      "industry": "化工",
+      "records": 28
+    },
+    {
+      "code": "600426",
+      "name": "华鲁恒升",
+      "industry": "化工",
+      "records": 26
+    },
+    {
+      "code": "600585",
+      "name": "海螺水泥",
+      "industry": "建材",
+      "records": 27
+    },
+    {
+      "code": "601899",
+      "name": "紫金矿业",
+      "industry": "有色金属",
+      "records": 21
+    },
+    {
+      "code": "600547",
+      "name": "山东黄金",
+      "industry": "黄金",
+      "records": 26
+    },
+    {
+      "code": "000625",
+      "name": "长安汽车",
+      "industry": "汽车",
+      "records": 31
+    },
+    {
+      "code": "601238",
+      "name": "广汽集团",
+      "industry": "汽车",
+      "records": 21
+    },
+    {
+      "code": "600104",
+      "name": "上汽集团",
+      "industry": "汽车",
+      "records": 31
+    },
+    {
+      "code": "600030",
+      "name": "中信证券",
+      "industry": "证券",
+      "records": 27
+    },
+    {
+      "code": "601211",
+      "name": "国泰君安",
+      "industry": "证券",
+      "records": 20
+    },
+    {
+      "code": "600837",
+      "name": "海通证券",
+      "industry": "证券",
+      "records": 34
+    },
+    {
+      "code": "000002",
+      "name": "万科A",
+      "industry": "地产",
+      "records": 34
+    },
+    {
+      "code": "600048",
+      "name": "保利发展",
+      "industry": "地产",
+      "records": 22
+    },
+    {
+      "code": "600009",
+      "name": "上海机场",
+      "industry": "机场",
+      "records": 31
+    },
+    {
+      "code": "600018",
+      "name": "上港集团",
+      "industry": "港口",
+      "records": 26
+    },
+    {
+      "code": "601888",
+      "name": "中国中免",
+      "industry": "零售",
+      "records": 19
+    },
+    {
+      "code": "600887",
+      "name": "伊利股份",
+      "industry": "食品",
+      "records": 33
+    },
+    {
+      "code": "603259",
+      "name": "药明康德",
+      "industry": "医药",
+      "records": 12
+    },
+    {
+      "code": "002352",
+      "name": "顺丰控股",
+      "industry": "物流",
+      "records": 19
+    },
+    {
+      "code": "300059",
+      "name": "东方财富",
+      "industry": "证券",
+      "records": 20
+    },
+    {
+      "code": "002714",
+      "name": "牧原股份",
+      "industry": "养殖",
+      "records": 17
+    },
+    {
+      "code": "300015",
+      "name": "爱尔眼科",
+      "industry": "医药",
+      "records": 19
+    },
+    {
+      "code": "002230",
+      "name": "科大讯飞",
+      "industry": "科技",
+      "records": 20
+    },
+    {
+      "code": "300033",
+      "name": "同花顺",
+      "industry": "科技",
+      "records": 20
+    },
+    {
+      "code": "688981",
+      "name": "中芯国际",
+      "industry": "半导体",
+      "records": 10
+    },
+    {
+      "code": "688599",
+      "name": "天合光能",
+      "industry": "新能源",
+      "records": 9
+    }
+  ],
+  "failed": [],
+  "timestamp": "2026-03-29T02:01:30.646025"
+}

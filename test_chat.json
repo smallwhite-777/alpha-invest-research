@@ -1,0 +1,7 @@
+{
+  "messages": [
+    {"role": "user", "content": "紫金矿业这两年的业绩怎么样"}
+  ],
+  "mode": "deep",
+  "enable_tools": true
+}

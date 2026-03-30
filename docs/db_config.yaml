@@ -1,0 +1,73 @@
+# A股上市公司财报数据库配置
+
+database:
+  name: "A股上市公司财报数据库"
+  version: "1.0.0"
+  source: "CSMAR (国泰安)"
+  time_range:
+    annual: "1990-2024"
+    quarterly: "1990-Q1 2025"
+
+paths:
+  data_dir: "./data"
+  annual_dir: "./data/annual"
+  quarterly_dir: "./data/quarterly"
+  config_dir: "./config"
+
+tables:
+  annual:
+    - name: "balance_sheet"
+      chinese: "资产负债表"
+      description: "反映企业在特定日期财务状况的报表"
+    - name: "income_statement"
+      chinese: "利润表"
+      description: "反映企业在一定会计期间经营成果的报表"
+    - name: "cash_flow_direct"
+      chinese: "现金流量表(直接法)"
+      description: "以直接法编制的现金流量表"
+    - name: "cash_flow_indirect"
+      chinese: "现金流量表(间接法)"
+      description: "以间接法编制的现金流量表"
+    - name: "indicators_solvency"
+      chinese: "偿债能力指标"
+      description: "流动比率、速动比率、资产负债率等"
+    - name: "indicators_disclosed"
+      chinese: "披露财务指标"
+      description: "直接摘自年报摘要的关键指标"
+    - name: "indicators_structure"
+      chinese: "比率结构指标"
+      description: "资产结构、负债结构、利润占比等"
+    - name: "indicators_operation"
+      chinese: "经营能力指标"
+      description: "周转率指标、营业周期等"
+    - name: "indicators_profitability"
+      chinese: "盈利能力指标"
+      description: "ROE、ROA、毛利率、净利率等"
+    - name: "indicators_cashflow"
+      chinese: "现金流分析指标"
+      description: "现金含量、自由现金流等"
+    - name: "indicators_risk"
+      chinese: "风险水平指标"
+      description: "财务杠杆、经营杠杆等"
+    - name: "indicators_growth"
+      chinese: "发展能力指标"
+      description: "各类增长率指标"
+    - name: "indicators_per_share"
+      chinese: "每股指标"
+      description: "每股收益、每股净资产、每股现金流等"
+    - name: "indicators_valuation"
+      chinese: "相对价值指标"
+      description: "市盈率、市净率、托宾Q值等"
+    - name: "indicators_dividend"
+      chinese: "股利分配指标"
+      description: "每股股利、股利分配率等"
+    - name: "company_master"
+      chinese: "公司主表"
+      description: "公司基础信息和行业分类"
+
+  quarterly:
+    # 同annual结构
+
+query:
+  default_report_type: "A"  # A=合并报表, B=母公司报表
+  date_format: "%Y-%m-%d"

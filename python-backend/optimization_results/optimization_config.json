@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "last_updated": "2026-03-28T03:22:36.602130",
+  "prompt_enhancements": {
+    "required_sections": [
+      "投资摘要",
+      "核心观点",
+      "行业概况",
+      "公司介绍",
+      "财务分析",
+      "盈利预测",
+      "估值分析",
+      "风险提示"
+    ],
+    "format_requirements": [
+      "数据精确到小数点后2位",
+      "关键结论加粗标注",
+      "标注数据来源",
+      "所有财务数据必须标注所属年份",
+      "同比/环比数据必须明确基准期",
+      "预测数据必须标注预测年份"
+    ],
+    "industry_keywords": {}
+  },
+  "search_enhancements": {
+    "additional_paths": [],
+    "priority_patterns": [
+      "*.md",
+      "*.txt",
+      "*.json"
+    ],
+    "max_results": 10,
+    "year_filter_enabled": true
+  },
+  "structure_templates": [],
+  "applied_strategies": [
+    {
+      "strategy": "time_handling",
+      "timestamp": "2026-03-28T03:22:36.602124",
+      "details": {
+        "added_time_requirements": [
+          "所有财务数据必须标注所属年份",
+          "同比/环比数据必须明确基准期",
+          "预测数据必须标注预测年份"
+        ]
+      }
+    }
+  ]
+}

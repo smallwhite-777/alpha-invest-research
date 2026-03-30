@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网站测试页面</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .success {
+            color: #22c55e;
+            font-weight: bold;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>投研网站 - 连接测试</h1>
+    
+    <div class="section">
+        <h2>1. 基础连接</h2>
+        <p>如果你能看到这个页面，说明本地服务器正在运行 ✅</p>
+    </div>
+
+    <div class="section">
+        <h2>2. API 测试</h2>
+        <p>测试 API 路由是否正常工作：</p>
+        <button onclick="testAPI()">测试 /api/macro/indicators</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. 主页测试</h2>
+        <p>如果主页打不开，可能的原因：</p>
+        <ul>
+            <li>Next.js 编译还在进行中（需要等待）</li>
+            <li>依赖包安装不完整</li>
+            <li>组件引用错误</li>
+            <li>数据库连接问题</li>
+        </ul>
+        <p><strong>建议操作：</strong></p>
+        <ol>
+            <li>等待 1-2 分钟让编译完成</li>
+            <li>刷新浏览器页面</li>
+            <li>如果仍然不行，检查浏览器控制台的错误信息</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>4. 快速跳转</h2>
+        <button onclick="window.location.href='/'">跳转到主页</button>
+        <button onclick="window.open('/', '_blank')">在新标签页打开主页</button>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<p>测试中...</p>';
+            
+            try {
+                const response = await fetch('/api/macro/indicators');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p class="success">✅ API 正常工作！</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">❌ API 返回错误: ${response.status}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 请求失败: ${error.message}</p>`;
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('测试页面已加载');
+            setTimeout(testAPI, 1000);
+        };
+    </script>
+</body>
+</html>

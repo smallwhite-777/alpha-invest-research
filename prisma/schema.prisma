@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Intelligence {
+  id          String               @id @default(cuid())
+  title       String
+  content     String
+  summary     String?
+  category    String
+  importance  Int                  @default(3)
+  source      String?
+  authorName  String               @default("匿名")
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  attachments Attachment[]
+  sectors     IntelligenceSector[]
+  stocks      IntelligenceStock[]
+  tags        IntelligenceTag[]
+
+  @@index([category])
+  @@index([importance])
+  @@index([createdAt])
+}
+
+model Tag {
+  id            String            @id @default(cuid())
+  name          String            @unique
+  color         String?
+  intelligences IntelligenceTag[]
+}
+
+model IntelligenceTag {
+  intelligenceId String
+  tagId          String
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  intelligence   Intelligence @relation(fields: [intelligenceId], references: [id], onDelete: Cascade)
+
+  @@id([intelligenceId, tagId])
+}
+
+model IntelligenceSector {
+  intelligenceId String
+  sectorCode     String
+  sectorName     String
+  intelligence   Intelligence @relation(fields: [intelligenceId], references: [id], onDelete: Cascade)
+
+  @@id([intelligenceId, sectorCode])
+  @@index([sectorCode])
+}
+
+model IntelligenceStock {
+  intelligenceId String
+  stockSymbol    String
+  stockName      String
+  intelligence   Intelligence @relation(fields: [intelligenceId], references: [id], onDelete: Cascade)
+
+  @@id([intelligenceId, stockSymbol])
+  @@index([stockSymbol])
+}
+
+model Attachment {
+  id             String       @id @default(cuid())
+  fileName       String
+  fileUrl        String
+  fileType       String
+  fileSize       Int
+  intelligenceId String
+  createdAt      DateTime     @default(now())
+  intelligence   Intelligence @relation(fields: [intelligenceId], references: [id], onDelete: Cascade)
+}
+
+model Stock {
+  id         String          @id @default(cuid())
+  symbol     String          @unique
+  name       String
+  market     String
+  sectorCode String
+  sectorName String
+  listDate   String?
+  financials FinancialData[]
+  valuations ValuationData[]
+  watchlists WatchlistItem[]
+
+  @@index([sectorCode])
+}
+
+model FinancialData {
+  id               String @id @default(cuid())
+  stockSymbol      String
+  period           String
+  periodDate       String
+  revenue          Float?
+  revenueYoy       Float?
+  grossMargin      Float?
+  netProfit        Float?
+  netProfitYoy     Float?
+  roe              Float?
+  roa              Float?
+  capex            Float?
+  operatingCF      Float?
+  totalAssets      Float?
+  totalEquity      Float?
+  totalDebt        Float?
+  assetTurnover    Float?
+  equityMultiplier Float?
+  netMargin        Float?
+  stock            Stock  @relation(fields: [stockSymbol], references: [symbol], onDelete: Cascade)
+
+  @@unique([stockSymbol, period])
+  @@index([stockSymbol])
+  @@index([periodDate])
+}
+
+model ValuationData {
+  id          String @id @default(cuid())
+  stockSymbol String
+  date        String
+  pe          Float?
+  pb          Float?
+  ps          Float?
+  marketCap   Float?
+  price       Float?
+  stock       Stock  @relation(fields: [stockSymbol], references: [symbol], onDelete: Cascade)
+
+  @@unique([stockSymbol, date])
+  @@index([stockSymbol])
+}
+
+model WatchlistItem {
+  id          String   @id @default(cuid())
+  userId      String   @default("default")
+  stockSymbol String
+  sortOrder   Int      @default(0)
+  note        String?
+  addedAt     DateTime @default(now())
+  stock       Stock    @relation(fields: [stockSymbol], references: [symbol], onDelete: Cascade)
+
+  @@unique([userId, stockSymbol])
+  @@index([userId])
+}
+
+model MacroIndicator {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  category    String
+  country     String           @default("CN")
+  unit        String
+  frequency   String
+  description String?
+  dataPoints  MacroDataPoint[]
+}
+
+model MacroDataPoint {
+  id            String         @id @default(cuid())
+  indicatorCode String
+  date          String
+  value         Float
+  indicator     MacroIndicator @relation(fields: [indicatorCode], references: [code], onDelete: Cascade)
+
+  @@unique([indicatorCode, date])
+  @@index([indicatorCode])
+  @@index([date])
+}

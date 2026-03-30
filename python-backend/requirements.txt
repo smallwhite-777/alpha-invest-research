@@ -1,0 +1,29 @@
+# Requirements for Multi-Agent Investment Research System
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Finance Data (Awesome-finance-skills)
+akshare>=1.10.0
+yfinance>=0.2.0
+
+# Logging
+loguru>=0.7.0
+
+# Optional: For async support
+# gevent>=23.9.0
+
+# Optional: For local embedding (if needed in future)
+# transformers>=4.35.0
+# torch>=2.1.0
+
+# Development
+python-dotenv>=1.0.0
