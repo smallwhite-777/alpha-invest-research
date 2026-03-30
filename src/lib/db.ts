@@ -2,8 +2,13 @@ import { PrismaClient } from '../generated/prisma/client'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
 
 // Turso云数据库配置
-const tursoUrl = process.env.TURSO_DATABASE_URL || 'libsql://alpha-invest-research-smallwhite-777.aws-ap-northeast-1.turso.io'
+// 注意：PrismaLibSql adapter需要https://格式的URL
+const tursoUrl = process.env.TURSO_DATABASE_URL || 'https://alpha-invest-research-smallwhite-777.aws-ap-northeast-1.turso.io'
 const tursoToken = process.env.TURSO_AUTH_TOKEN
+
+if (!tursoToken) {
+  console.warn('TURSO_AUTH_TOKEN not configured - database operations will fail')
+}
 
 const adapter = new PrismaLibSql({
   url: tursoUrl,
