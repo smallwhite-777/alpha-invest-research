@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack",
-    "build": "next build",
-    "build:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "next build --webpack",
+    "build:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },

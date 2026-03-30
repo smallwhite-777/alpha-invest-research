@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     cpus: 1,
   },
 
+  // 添加空 turbopack 配置以兼容 Next.js 16
+  turbopack: {},
+
   // 减少内存使用
   webpack: (config, { dev, isServer }) => {
     // 减少并发处理的文件数
