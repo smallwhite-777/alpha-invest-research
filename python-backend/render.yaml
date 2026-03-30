@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: alpha-invest-backend
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: INDEX_ENABLED
+        value: false
+      - key: SCHEDULER_ENABLED
+        value: false
+      - key: MINIMAX_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false

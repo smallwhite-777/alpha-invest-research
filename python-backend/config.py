@@ -13,8 +13,9 @@ load_dotenv(env_path)
 BASE_DIR = Path(__file__).parent.parent
 
 # ============== KNOWLEDGE BASE DIRECTORIES ==============
-# All directories are in the unified Knowledgebase folder
-KNOWLEDGE_BASE_DIR = Path(r"D:\投研web 3\投研网站 3\Knowledgebase")
+# Support both local and cloud deployment
+# In cloud, set KNOWLEDGE_BASE_DIR environment variable or leave empty to disable
+KNOWLEDGE_BASE_DIR = Path(os.getenv("KNOWLEDGE_BASE_DIR", r"D:\投研web 3\投研网站 3\Knowledgebase"))
 RESEARCH_REPORTS_DIR = KNOWLEDGE_BASE_DIR / "Reserach Reports"
 NEWS_DIR = KNOWLEDGE_BASE_DIR / "News"
 FINANCIAL_REPORTS_DIR = KNOWLEDGE_BASE_DIR / "Financial Reports"
@@ -26,7 +27,8 @@ INDEX_DIR = BASE_DIR / "python-backend" / "data"
 INDEX_PATH = INDEX_DIR / "knowledge_index.json"
 INDEX_AUTO_UPDATE = True          # Auto-check for changes
 INDEX_UPDATE_INTERVAL = 600       # Check every 10 minutes (seconds)
-INDEX_ENABLED = True              # Enable/disable index usage
+# Disable index in cloud if knowledge base not available
+INDEX_ENABLED = os.getenv("INDEX_ENABLED", "true").lower() == "true" and KNOWLEDGE_BASE_DIR.exists()
 
 # ============== SAFE DEFAULTS FOR SEARCH ==============
 # These prevent the system from hanging on large knowledge bases
