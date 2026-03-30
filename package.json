@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack",
-    "build": "next build --webpack",
+    "build": "prisma generate && next build --webpack",
     "build:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
