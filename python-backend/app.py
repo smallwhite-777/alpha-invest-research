@@ -62,6 +62,42 @@ if SCHEDULER_ENABLED:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Next.js frontend
 
+# Register blueprints
+try:
+    from routes.macro_routes import macro_bp
+    app.register_blueprint(macro_bp)
+    print("[Blueprint] macro_bp registered successfully")
+except Exception as e:
+    print(f"[Blueprint] Warning: Failed to register macro_bp: {e}")
+
+try:
+    from routes.stock_routes import stock_bp
+    app.register_blueprint(stock_bp)
+    print("[Blueprint] stock_bp registered successfully")
+except Exception as e:
+    print(f"[Blueprint] Warning: Failed to register stock_bp: {e}")
+
+try:
+    from routes.market_routes import market_bp
+    app.register_blueprint(market_bp)
+    print("[Blueprint] market_bp registered successfully")
+except Exception as e:
+    print(f"[Blueprint] Warning: Failed to register market_bp: {e}")
+
+try:
+    from routes.financial_routes import financial_bp
+    app.register_blueprint(financial_bp)
+    print("[Blueprint] financial_bp registered successfully")
+except Exception as e:
+    print(f"[Blueprint] Warning: Failed to register financial_bp: {e}")
+
+try:
+    from routes.chat_routes import chat_bp
+    app.register_blueprint(chat_bp)
+    print("[Blueprint] chat_bp registered successfully")
+except Exception as e:
+    print(f"[Blueprint] Warning: Failed to register chat_bp: {e}")
+
 # Ensure UTF-8 encoding for all JSON responses
 @app.after_request
 def add_charset_header(response):
