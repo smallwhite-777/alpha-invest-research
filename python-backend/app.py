@@ -1,14 +1,21 @@
+# -*- coding: utf-8 -*-
 # Flask Main Application
 # Multi-Agent Investment Research QA System
 
+# Force UTF-8 encoding on Windows
+import sys
+import os
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
-import os
 import json
 from typing import Dict, Any
 from datetime import datetime
 
-import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
