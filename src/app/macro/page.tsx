@@ -31,6 +31,22 @@ export default function MacroPage() {
     fetcher
   )
 
+  // 批量获取所有指标数据，而不是每个卡片单独获取
+  const indicatorCodes = indicators?.map((i: MacroIndicator) => i.code).join(',') || ''
+  const { data: allMacroData } = useSWR(
+    indicatorCodes ? `/api/macro/data?codes=${indicatorCodes}&limit=12` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  )
+
+  // 创建数据映射
+  const dataMap: Record<string, any[]> = {}
+  allMacroData?.forEach((item: any) => {
+    if (item?.indicatorCode) {
+      dataMap[item.indicatorCode] = item.data || []
+    }
+  })
+
   return (
     <div className="h-full overflow-y-auto p-6">
     <div className="mx-auto max-w-6xl">
@@ -67,7 +83,7 @@ export default function MacroPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {indicators?.map((indicator: MacroIndicator) => (
-              <IndicatorCard key={indicator.id} indicator={indicator} />
+              <IndicatorCard key={indicator.id} indicator={indicator} dataMap={dataMap} />
             ))}
           </div>
         </TabsContent>
@@ -85,14 +101,10 @@ export default function MacroPage() {
   )
 }
 
-function IndicatorCard({ indicator }: { indicator: MacroIndicator }) {
-  const { data: latestData, error } = useSWR(
-    `/api/macro/data?codes=${indicator.code}&limit=1`,
-    fetcher
-  )
-
-  const latestValue = latestData?.[0]?.data?.[0]?.value
-  const latestDate = latestData?.[0]?.data?.[0]?.date
+function IndicatorCard({ indicator, dataMap }: { indicator: MacroIndicator; dataMap: Record<string, any[]> }) {
+  const data = dataMap[indicator.code] || []
+  const latestValue = data[data.length - 1]?.value
+  const latestDate = data[data.length - 1]?.date
 
   const categoryLabel = MACRO_CATEGORIES.find(c => c.value === indicator.category)?.label
 
@@ -126,33 +138,27 @@ function IndicatorCard({ indicator }: { indicator: MacroIndicator }) {
         </div>
       )}
 
-      <MiniChart indicatorCode={indicator.code} />
+      <MiniChart data={data} />
     </Card>
   )
 }
 
-function MiniChart({ indicatorCode }: { indicatorCode: string }) {
+function MiniChart({ data }: { data: any[] }) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
-  const { data, error, isLoading } = useSWR(
-    `/api/macro/data?codes=${indicatorCode}&limit=12`,
-    fetcher
-  )
-
-  if (!mounted || isLoading || error || !data?.[0]?.data?.length) return null
+  if (!mounted || !data?.length) return null
 
   try {
     const isDark = resolvedTheme === 'dark'
-    const chartData = data[0].data
-    const values = chartData.map((d: { value: number }) => d.value)
+    const values = data.map((d: { value: number }) => d.value)
     const min = Math.min(...values)
     const max = Math.max(...values)
 
     const option = {
       grid: { left: 0, right: 0, top: 5, bottom: 5 },
-      xAxis: { type: 'category', show: false, data: chartData.map((d: { date: string }) => d.date) },
+      xAxis: { type: 'category', show: false, data: data.map((d: { date: string }) => d.date) },
       yAxis: { type: 'value', show: false, min, max },
       series: [
         {
