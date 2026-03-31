@@ -862,10 +862,11 @@ function supportsToolCalling(baseUrl: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { messages, mode = 'deep', enable_tools = true } = body as {
+    const { messages, mode = 'deep', enable_tools = true, use_workflow = true } = body as {
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
       mode: 'basic' | 'deep'
       enable_tools?: boolean
+      use_workflow?: boolean  // 新增：使用Python后端工作流获取思维链条
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -876,7 +877,46 @@ export async function POST(request: NextRequest) {
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
     const question = lastUserMsg?.content || ''
 
-    // ========== Unified AI Entry Point: Use Python Backend Workflow ==========
+    // ========== 新增：使用Python后端工作流获取思维链条 ==========
+    if (use_workflow) {
+      console.log('[chat] Using Python backend workflow for thinking chain')
+
+      try {
+        const response = await fetch(`${PYTHON_BACKEND_URL}/api/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: question, provider: 'minimax' }),
+          signal: AbortSignal.timeout(60000) // 60 second timeout for LLM calls
+        })
+
+        if (!response.ok) {
+          throw new Error(`Python backend returned ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (data.status === 'completed') {
+          return NextResponse.json({
+            result: data.result?.content || '',
+            sources: (data.result?.sources || []).map((s: any) => ({
+              id: s.stock_code || s.display || 'unknown',
+              title: s.display || s.company_name || '未知来源',
+              type: s.type || 'database'
+            })),
+            steps: data.steps || [],  // 思维链条步骤
+            total_duration_ms: data.total_duration_ms,
+            workflow: 'python_backend'
+          })
+        } else {
+          throw new Error(data.error || 'Python workflow failed')
+        }
+      } catch (workflowError) {
+        console.error('[chat] Python workflow failed, falling back to frontend AI:', workflowError)
+        // Fall through to frontend AI logic below
+      }
+    }
+
+    // ========== Legacy: USE_PYTHON_WORKFLOW env flag ==========
     if (USE_PYTHON_WORKFLOW) {
       console.log('[chat] Using Python backend workflow for unified AI entry point')
 

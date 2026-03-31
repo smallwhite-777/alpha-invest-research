@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, MoreHorizontal, ChevronRight, Database, BookOpen } from 'lucide-react'
+import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, MoreHorizontal, ChevronRight, Database, BookOpen, CheckCircle2, Clock, XCircle, Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
@@ -56,6 +56,8 @@ interface Message {
   result?: AnalysisResult
   analysisMode?: 'basic' | 'deep'
   sources?: { id: string; title: string; type?: string }[]
+  steps?: { name: string; status: string; duration_ms?: number; error?: string }[]  // 思维链条步骤
+  total_duration_ms?: number  // 总耗时
   timestamp: number
   isLoading?: boolean  // 新增：标记是否正在加载
 }
@@ -81,6 +83,69 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
         {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
       </button>
       {isOpen && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  )
+}
+
+// 思维链条可视化组件
+function ThinkingChain({ steps, totalDuration }: { steps?: { name: string; status: string; duration_ms?: number; error?: string }[]; totalDuration?: number }) {
+  if (!steps || steps.length === 0) return null
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+      case 'running':
+        return <Loader className="h-4 w-4 text-amber-500 animate-spin" />
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-rose-500" />
+      default:
+        return <Clock className="h-4 w-4 text-muted-foreground" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-emerald-500/10 border-emerald-500/20'
+      case 'running':
+        return 'bg-amber-500/10 border-amber-500/20'
+      case 'failed':
+        return 'bg-rose-500/10 border-rose-500/20'
+      default:
+        return 'bg-muted/50 border-border'
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card/30 p-4 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary" />
+          思维链条
+        </h4>
+        {totalDuration && (
+          <span className="text-xs text-muted-foreground">
+            总耗时: {totalDuration.toFixed(0)}ms
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {steps.map((step, index) => (
+          <div
+            key={index}
+            className={`flex items-center justify-between p-2.5 rounded-lg border ${getStatusColor(step.status)} transition-colors`}
+          >
+            <div className="flex items-center gap-2.5">
+              {getStatusIcon(step.status)}
+              <span className="text-sm text-foreground">{step.name}</span>
+            </div>
+            {step.duration_ms && (
+              <span className="text-xs text-muted-foreground">{step.duration_ms.toFixed(0)}ms</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -586,6 +651,7 @@ export default function AnalyzePage() {
           body: JSON.stringify({
             messages: chatMessages,
             mode: analysisMode,
+            use_workflow: true,  // 使用Python后端工作流获取思维链条
           }),
         })
 
@@ -608,7 +674,7 @@ export default function AnalyzePage() {
         // 更新AI消息（替换加载状态）
         setMessages(prev => prev.map(msg =>
           msg.id === loadingMessageId
-            ? { ...msg, isLoading: false, content: data.result, sources: data.sources || [] }
+            ? { ...msg, isLoading: false, content: data.result, sources: data.sources || [], steps: data.steps || [], total_duration_ms: data.total_duration_ms }
             : msg
         ))
       }
@@ -772,7 +838,7 @@ export default function AnalyzePage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground mb-2">智能投研助手</h1>
-                  <p className="text-muted-foreground">上传研报获取AI分析，或基于知识库情报提问</p>
+                  <p className="text-muted-foreground">上传研报获取AI分析 · 基于知识库情报提问 · 思维链条可视化</p>
                 </div>
 
                 {/* 快速示例 */}
@@ -907,6 +973,10 @@ export default function AnalyzePage() {
                     {/* Assistant text reply (for follow-up questions / knowledge base) */}
                     {message.role === 'assistant' && message.content && !message.result && !message.isLoading && (
                       <div className="space-y-3">
+                        {/* Thinking Chain Visualization */}
+                        {message.steps && message.steps.length > 0 && (
+                          <ThinkingChain steps={message.steps} totalDuration={message.total_duration_ms} />
+                        )}
                         <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-card/50 px-5 py-4">
                           <FormattedMessage content={message.content} />
                         </div>

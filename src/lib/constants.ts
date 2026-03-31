@@ -81,5 +81,4 @@ export const NAV_ITEMS = [
   { href: '/macro', label: '宏观看板', icon: 'Globe' },
   { href: '/analyze', label: '智能分析', icon: 'FileText' },
   { href: '/news', label: '实时新闻', icon: 'Newspaper' },
-  { href: '/research', label: '研报问答', icon: 'Search' },
 ] as const
