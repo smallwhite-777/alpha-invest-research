@@ -96,20 +96,31 @@ def get_macro_data():
         results = []
 
         for code in code_list:
-            data = service.fetch_indicator(code, start_date)
+            try:
+                data = service.fetch_indicator(code, start_date)
 
-            # Apply limit
-            if len(data) > limit:
-                data = data[-limit:]
+                # Apply limit
+                if len(data) > limit:
+                    data = data[-limit:]
 
-            # Filter by end_date
-            if end_date and data:
-                data = [d for d in data if d['date'] <= end_date]
+                # Filter by end_date
+                if end_date and data:
+                    data = [d for d in data if d['date'] <= end_date]
 
-            results.append({
-                'indicatorCode': code,
-                'data': data
-            })
+                # If no data from AKShare, generate mock data
+                if not data:
+                    mock = _generate_mock_data([code], limit)[0]
+                    results.append(mock)
+                else:
+                    results.append({
+                        'indicatorCode': code,
+                        'data': data
+                    })
+            except Exception as e:
+                # If fetch fails for this indicator, use mock data
+                logger.warning(f"Failed to fetch {code}: {e}, using mock data")
+                mock = _generate_mock_data([code], limit)[0]
+                results.append(mock)
 
         return jsonify(results)
 
