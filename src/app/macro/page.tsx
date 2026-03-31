@@ -15,37 +15,59 @@ import { registerThemes, getThemeName, getChartColors } from '@/lib/chart-theme'
 import type { MacroIndicator } from '@/types/macro'
 
 // 动态导入 ECharts 组件，禁用 SSR
-const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false })
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => null
+})
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+const fetcher = async (url: string) => {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json()
+  } catch (e) {
+    console.error('Fetch error:', e)
+    return null
+  }
+}
 
 // 在客户端注册主题
 if (typeof window !== 'undefined') {
-  registerThemes()
+  try {
+    registerThemes()
+  } catch (e) {
+    console.error('Chart theme error:', e)
+  }
 }
 
 export default function MacroPage() {
   const [category, setCategory] = useState<string>('')
-  const { data: indicators } = useSWR(
+  const { data: indicators, error: indicatorsError } = useSWR(
     `/api/macro/indicators${category ? `?category=${category}` : ''}`,
     fetcher
   )
 
-  // 批量获取所有指标数据，而不是每个卡片单独获取
-  const indicatorCodes = indicators?.map((i: MacroIndicator) => i.code).join(',') || ''
-  const { data: allMacroData } = useSWR(
+  // 限制一次获取的指标数量，避免请求过长
+  const limitedIndicators = indicators?.slice(0, 12) || []
+  const indicatorCodes = limitedIndicators.map((i: MacroIndicator) => i.code).join(',')
+  const { data: allMacroData, error: dataError } = useSWR(
     indicatorCodes ? `/api/macro/data?codes=${indicatorCodes}&limit=12` : null,
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, errorRetryCount: 1 }
   )
 
-  // 创建数据映射
+  // 创建数据映射，增加安全检查
   const dataMap: Record<string, any[]> = {}
-  allMacroData?.forEach((item: any) => {
-    if (item?.indicatorCode) {
-      dataMap[item.indicatorCode] = item.data || []
-    }
-  })
+  if (Array.isArray(allMacroData)) {
+    allMacroData.forEach((item: any) => {
+      if (item?.indicatorCode && Array.isArray(item.data)) {
+        dataMap[item.indicatorCode] = item.data
+      }
+    })
+  }
+
+  // 加载状态
+  const isLoading = !indicators && !indicatorsError
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -57,45 +79,53 @@ export default function MacroPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="indicators" className="space-y-4">
-        <TabsList className="bg-card border-border">
-          <TabsTrigger value="indicators" className="data-[state=active]:bg-accent">指标概览</TabsTrigger>
-          <TabsTrigger value="correlation" className="data-[state=active]:bg-accent">相关性分析</TabsTrigger>
-          <TabsTrigger value="comparison" className="data-[state=active]:bg-accent">双轴对比</TabsTrigger>
-        </TabsList>
+      {indicatorsError && (
+        <div className="text-red-500 mb-4">加载指标失败，请刷新页面重试</div>
+      )}
 
-        <TabsContent value="indicators" className="space-y-4">
-          <div className="flex gap-4 mb-4">
-            <Select value={category} onValueChange={(v) => v && setCategory(v)}>
-              <SelectTrigger className="w-[180px] bg-card border-border text-foreground">
-                <SelectValue placeholder="全部分类" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="all" className="text-foreground">全部分类</SelectItem>
-                {MACRO_CATEGORIES.map(c => (
-                  <SelectItem key={c.value} value={c.value} className="text-foreground">
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {isLoading ? (
+        <div className="text-muted-foreground">加载中...</div>
+      ) : (
+        <Tabs defaultValue="indicators" className="space-y-4">
+          <TabsList className="bg-card border-border">
+            <TabsTrigger value="indicators" className="data-[state=active]:bg-accent">指标概览</TabsTrigger>
+            <TabsTrigger value="correlation" className="data-[state=active]:bg-accent">相关性分析</TabsTrigger>
+            <TabsTrigger value="comparison" className="data-[state=active]:bg-accent">双轴对比</TabsTrigger>
+          </TabsList>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {indicators?.map((indicator: MacroIndicator) => (
-              <IndicatorCard key={indicator.id} indicator={indicator} dataMap={dataMap} />
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="indicators" className="space-y-4">
+            <div className="flex gap-4 mb-4">
+              <Select value={category} onValueChange={(v) => v && setCategory(v)}>
+                <SelectTrigger className="w-[180px] bg-card border-border text-foreground">
+                  <SelectValue placeholder="全部分类" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all" className="text-foreground">全部分类</SelectItem>
+                  {MACRO_CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value} className="text-foreground">
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <TabsContent value="correlation" className="space-y-4">
-          <CorrelationAnalysis indicators={indicators || []} />
-        </TabsContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {limitedIndicators?.map((indicator: MacroIndicator) => (
+                <IndicatorCard key={indicator.id} indicator={indicator} dataMap={dataMap} />
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="comparison" className="space-y-4">
-          <DualAxisComparison indicators={indicators || []} />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="correlation" className="space-y-4">
+            <CorrelationAnalysis indicators={limitedIndicators || []} />
+          </TabsContent>
+
+          <TabsContent value="comparison" className="space-y-4">
+            <DualAxisComparison indicators={limitedIndicators || []} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
     </div>
   )
@@ -146,15 +176,22 @@ function IndicatorCard({ indicator, dataMap }: { indicator: MacroIndicator; data
 function MiniChart({ data }: { data: any[] }) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [error, setError] = useState(false)
+
   useEffect(() => setMounted(true), [])
 
-  if (!mounted || !data?.length) return null
+  if (!mounted || error || !data?.length || data.length < 2) return null
 
   try {
     const isDark = resolvedTheme === 'dark'
-    const values = data.map((d: { value: number }) => d.value)
+    const values = data.map((d: { value: number }) => d.value).filter(v => typeof v === 'number')
+
+    if (values.length < 2) return null
+
     const min = Math.min(...values)
     const max = Math.max(...values)
+
+    if (min === max) return null
 
     const option = {
       grid: { left: 0, right: 0, top: 5, bottom: 5 },
@@ -174,7 +211,14 @@ function MiniChart({ data }: { data: any[] }) {
 
     return (
       <div className="h-16 mt-3">
-        <ReactECharts option={option} theme={getThemeName(isDark)} style={{ height: '100%' }} />
+        <ReactECharts
+          option={option}
+          theme={getThemeName(isDark)}
+          style={{ height: '100%' }}
+          onEvents={{
+            error: () => setError(true)
+          }}
+        />
       </div>
     )
   } catch (e) {
