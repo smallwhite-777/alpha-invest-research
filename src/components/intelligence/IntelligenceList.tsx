@@ -4,8 +4,6 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
 import { INTELLIGENCE_CATEGORIES, IMPORTANCE_LEVELS } from '@/lib/constants'
 import type { Intelligence } from '@/types/intelligence'
 
@@ -30,57 +28,58 @@ export function IntelligenceList({ category, sector, importance, search }: Intel
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-0">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="p-4 bg-card border-border animate-pulse">
-            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-            <div className="h-3 bg-muted rounded w-1/2" />
-          </Card>
+          <div key={i} className="p-5 bg-surface-low animate-pulse">
+            <div className="h-4 bg-surface-high w-3/4 mb-2" />
+            <div className="h-3 bg-surface-high w-1/2" />
+          </div>
         ))}
       </div>
     )
   }
 
   if (error) {
-    return <div className="text-destructive">加载失败</div>
+    return <div className="text-down text-sm py-8">加载失败</div>
   }
 
   if (!data?.items?.length) {
     return (
-      <div className="text-center py-12 text-muted-foreground/60">
+      <div className="text-center py-16 text-secondary">
         暂无情报数据
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {data.items.map((item: Intelligence) => (
-        <IntelligenceCard key={item.id} intelligence={item} />
+    <div className="space-y-0">
+      {data.items.map((item: Intelligence, idx: number) => (
+        <IntelligenceCard key={item.id} intelligence={item} index={idx} />
       ))}
     </div>
   )
 }
 
-function IntelligenceCard({ intelligence }: { intelligence: Intelligence }) {
+function IntelligenceCard({ intelligence, index }: { intelligence: Intelligence; index: number }) {
   const categoryInfo = INTELLIGENCE_CATEGORIES.find(c => c.value === intelligence.category)
   const importanceInfo = IMPORTANCE_LEVELS.find(l => l.value === intelligence.importance)
+  const isEven = index % 2 === 0
 
   return (
     <Link href={`/intelligence/${intelligence.id}`}>
-      <Card className="p-4 bg-card border-border hover:border-border transition-colors cursor-pointer">
+      <div className={`p-5 transition-colors cursor-pointer ${isEven ? 'bg-surface-low' : 'bg-surface'} hover:bg-surface-high`}>
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs border-border text-muted-foreground">
+            <span className="text-[10px] uppercase tracking-wider text-secondary bg-surface-high px-2 py-0.5">
               {categoryInfo?.label || intelligence.category}
-            </Badge>
+            </span>
             {importanceInfo && intelligence.importance >= 4 && (
-              <Badge className="text-xs" style={{ backgroundColor: importanceInfo.color + '20', color: importanceInfo.color }}>
+              <span className="text-[10px] uppercase tracking-wider text-down bg-surface-high px-2 py-0.5">
                 {importanceInfo.label}
-              </Badge>
+              </span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground/60">
+          <span className="text-[11px] text-secondary">
             {formatDistanceToNow(new Date(intelligence.createdAt), { addSuffix: true, locale: zhCN })}
           </span>
         </div>
@@ -90,7 +89,7 @@ function IntelligenceCard({ intelligence }: { intelligence: Intelligence }) {
         </h3>
 
         {intelligence.summary && (
-          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+          <p className="text-xs text-secondary mb-3 line-clamp-2 leading-relaxed">
             {intelligence.summary}
           </p>
         )}
@@ -100,9 +99,9 @@ function IntelligenceCard({ intelligence }: { intelligence: Intelligence }) {
             const tagName = typeof t === 'string' ? t : t?.tag?.name || t?.name || ''
             const tagId = typeof t === 'string' ? t : t?.tag?.id || idx
             return (
-              <Badge key={tagId} variant="secondary" className="text-xs bg-accent text-muted-foreground">
+              <span key={tagId} className="text-[10px] text-secondary bg-surface-high px-2 py-0.5">
                 {tagName}
-              </Badge>
+              </span>
             )
           })}
         </div>
@@ -110,13 +109,13 @@ function IntelligenceCard({ intelligence }: { intelligence: Intelligence }) {
         {(intelligence as any).stocks?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {(intelligence as any).stocks.map((s: any) => (
-              <Badge key={s.stockSymbol || s.symbol} className="text-xs bg-link/20 text-link">
+              <span key={s.stockSymbol || s.symbol} className="text-[10px] text-up bg-surface-high px-2 py-0.5">
                 {s.stockName || s.name || s.symbol}
-              </Badge>
+              </span>
             ))}
           </div>
         )}
-      </Card>
+      </div>
     </Link>
   )
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Search, TrendingUp, Clock, ExternalLink } from 'lucide-react'
@@ -73,17 +72,17 @@ export default function NewsPage() {
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">实时新闻</h1>
-            <p className="text-sm text-muted-foreground mt-1">AlphaEar-News 市场热点追踪</p>
+            <h1 className="font-editorial text-xl font-semibold text-foreground">实时新闻</h1>
+            <p className="text-sm text-muted-foreground mt-1">AlphaEar 市场热点追踪</p>
           </div>
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 rounded-none">
             <TrendingUp className="w-3 h-3 mr-1" />
             实时更新
           </Badge>
         </div>
 
         {/* Search */}
-        <Card className="p-4 mb-6 bg-card border-border">
+        <div className="p-4 mb-6 bg-surface-low">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
@@ -91,11 +90,11 @@ export default function NewsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索新闻..."
-                className="pl-10 bg-background border-border text-foreground"
+                className="pl-10 bg-surface rounded-none text-foreground"
               />
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* News List */}
         {loading ? (
@@ -107,16 +106,16 @@ export default function NewsPage() {
             暂无新闻
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-1">
             {filteredNews.map((item, idx) => (
-              <Card
+              <div
                 key={item.id || idx}
-                className="p-5 bg-card border-border hover:bg-accent/50 transition-all duration-200"
+                className="p-5 bg-surface-low hover:bg-surface-high transition-colors"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className="text-xs border-border text-muted-foreground/60">
+                      <Badge variant="outline" className="text-xs rounded-none text-muted-foreground/60">
                         {SOURCE_LABELS[item.source] || item.source}
                       </Badge>
                       <span className="text-xs text-muted-foreground/60">
@@ -150,7 +149,7 @@ export default function NewsPage() {
                     </a>
                   )}
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         )}

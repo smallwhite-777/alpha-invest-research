@@ -4,7 +4,6 @@ import { use, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { useTheme } from 'next-themes'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
@@ -125,8 +124,8 @@ export default function StockDetailPage({ params }: PageProps) {
       <div className="h-full overflow-y-auto p-6">
         <div className="mx-auto max-w-6xl">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-card rounded w-1/3" />
-            <div className="h-96 bg-card rounded" />
+            <div className="h-8 bg-surface-low w-1/3" />
+            <div className="h-96 bg-surface-low" />
           </div>
         </div>
       </div>
@@ -137,9 +136,9 @@ export default function StockDetailPage({ params }: PageProps) {
     return (
       <div className="h-full overflow-y-auto p-6">
         <div className="mx-auto max-w-6xl text-center py-12">
-          <p className="text-destructive">加载失败，股票代码 "{decodedSymbol}" 可能不存在</p>
+          <p className="text-destructive">加载失败，股票代码 &ldquo;{decodedSymbol}&rdquo; 可能不存在</p>
           <Link href="/stock">
-            <Button variant="outline" className="mt-4 border-border">
+            <Button variant="outline" className="mt-4 !rounded-none">
               <ArrowLeft className="h-4 w-4 mr-1" />
               返回搜索
             </Button>
@@ -167,15 +166,15 @@ export default function StockDetailPage({ params }: PageProps) {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Link href="/stock">
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <Button variant="ghost" size="sm" className="text-muted-foreground !rounded-none">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 返回
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">
+              <h1 className="font-editorial text-xl tracking-tight text-foreground">
                 {stockName}
-                <span className="text-sm text-link ml-2">{decodedSymbol}</span>
+                <span className="text-sm text-link ml-2 font-mono font-sans">{decodedSymbol}</span>
               </h1>
             </div>
           </div>
@@ -183,7 +182,7 @@ export default function StockDetailPage({ params }: PageProps) {
             variant="outline"
             size="sm"
             onClick={() => refreshPrice()}
-            className="border-border"
+            className="!rounded-none"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
             刷新
@@ -191,7 +190,7 @@ export default function StockDetailPage({ params }: PageProps) {
         </div>
 
         {/* Price Info Card */}
-        <Card className="p-5 mb-6 bg-card border-border">
+        <div className="bg-surface-low p-5 mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3">
@@ -199,7 +198,7 @@ export default function StockDetailPage({ params }: PageProps) {
                   ¥{latestPrice?.toFixed(2) || '-'}
                 </span>
                 {priceChangePct !== null && (
-                  <Badge className={`${isUp ? 'bg-up/20 text-up' : 'bg-down/20 text-down'}`}>
+                  <Badge className={`!rounded-none ${isUp ? 'bg-up/20 text-up' : 'bg-down/20 text-down'}`}>
                     {isUp ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                     {isUp ? '+' : ''}{priceChange?.toFixed(2)} ({isUp ? '+' : ''}{priceChangePct.toFixed(2)}%)
                   </Badge>
@@ -220,19 +219,21 @@ export default function StockDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Price Chart */}
-        <Card className="p-5 mb-6 bg-card border-border">
+        <div className="bg-surface-low p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-muted-foreground">股价走势</h3>
-            <div className="flex gap-1">
+            <h3 className="font-editorial text-sm tracking-tight text-muted-foreground">
+              股价走势
+            </h3>
+            <div className="flex gap-px">
               {(['1M', '3M', '6M', '1Y'] as const).map((range) => (
                 <Button
                   key={range}
                   variant={timeRange === range ? 'default' : 'outline'}
                   size="sm"
-                  className="h-7 px-3 text-xs"
+                  className="h-7 px-3 text-xs !rounded-none"
                   onClick={() => setTimeRange(range)}
                 >
                   {range}
@@ -245,13 +246,15 @@ export default function StockDetailPage({ params }: PageProps) {
             timeRange={timeRange}
             isDark={mounted && resolvedTheme === 'dark'}
           />
-        </Card>
+        </div>
 
         {/* Statistics */}
-        <Card className="p-5 mb-6 bg-card border-border">
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">区间统计</h3>
+        <div className="bg-surface-low p-5 mb-6">
+          <h3 className="font-editorial text-sm tracking-tight text-muted-foreground mb-4">
+            区间统计
+          </h3>
           <StatisticsCards data={priceInfo} timeRange={timeRange} />
-        </Card>
+        </div>
 
         {/* Financial Analysis Module */}
         <div className="mt-8">
@@ -325,6 +328,7 @@ function PriceChart({
       backgroundColor: isDark ? 'rgba(18,18,20,0.94)' : 'rgba(255,255,255,0.94)',
       borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
       borderWidth: 1,
+      borderRadius: 0,
       padding: 10,
       textStyle: { fontSize: 12, color: isDark ? '#f5f5f7' : '#1c1c1e' },
       formatter: (params: any) => {
@@ -433,9 +437,9 @@ function StatisticsCards({
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {stats.map((stat) => (
-        <div key={stat.label} className="text-center">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-surface-high">
+      {stats.map((stat, idx) => (
+        <div key={stat.label} className={`text-center p-4 ${idx % 2 === 0 ? 'bg-surface-low' : 'bg-surface-float'}`}>
           <div className="text-xs text-muted-foreground mb-1">{stat.label}</div>
           <div className={`font-mono font-medium ${stat.color || ''}`}>{stat.value}</div>
         </div>

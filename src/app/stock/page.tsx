@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Search, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react'
 
@@ -84,46 +83,52 @@ export default function StockPage() {
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-foreground">股价数据</h1>
-          <p className="text-sm text-muted-foreground mt-1">AlphaEar-Stock 实时行情查询</p>
+          <h1 className="font-editorial text-xl tracking-tight text-foreground">
+            股价数据
+            <span className="block text-sm font-sans text-muted-foreground mt-0.5">
+              实时行情查询
+            </span>
+          </h1>
         </div>
 
         {/* Search */}
-        <Card className="p-4 mb-6 bg-card border-border">
+        <div className="bg-surface-low p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="输入股票代码或名称搜索..."
-              className="pl-10 bg-background border-border text-foreground text-base"
+              placeholder="输入股票代码或名称..."
+              className="pl-10 bg-background !rounded-none text-foreground text-base !border-0 focus-visible:ring-0"
               autoFocus
             />
           </div>
 
           {/* Search Results */}
           {(searchResults.length > 0 || searching) && (
-            <div className="mt-3 border-t border-border pt-3">
-              <div className="text-xs text-muted-foreground mb-2">
+            <div className="mt-3 pt-3 bg-surface-float">
+              <div className="text-xs text-muted-foreground mb-2 px-3">
                 {searching ? '搜索中...' : '搜索结果'}
               </div>
               {searchResults.length > 0 ? (
-                <div className="space-y-1">
-                  {searchResults.map((stock) => (
+                <div>
+                  {searchResults.map((stock, idx) => (
                     <Link
                       key={stock.code}
                       href={`/stock/${stock.code}`}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors"
+                      className={`flex items-center justify-between p-3 hover:bg-surface-high transition-colors ${
+                        idx % 2 === 0 ? 'bg-surface-float' : 'bg-surface-low'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center">
                           <span className="text-sm font-medium text-blue-500">
                             {stock.code.slice(0, 2)}
                           </span>
                         </div>
                         <div>
                           <div className="font-medium text-foreground">{stock.name}</div>
-                          <div className="text-xs text-muted-foreground">{stock.code}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{stock.code}</div>
                         </div>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -137,25 +142,29 @@ export default function StockPage() {
               )}
             </div>
           )}
-        </Card>
+        </div>
 
         {/* Quick Access - Popular Stocks */}
-        <Card className="p-5 bg-card border-border">
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">热门股票</h3>
+        <div className="bg-surface-low p-5">
+          <h3 className="font-editorial text-sm tracking-tight text-muted-foreground mb-4">
+            热门股票
+          </h3>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">加载中...</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {hotStocks.slice(0, 12).map((stock) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-surface-high">
+              {hotStocks.slice(0, 12).map((stock, idx) => (
                 <Link
                   key={stock.code}
                   href={`/stock/${stock.code}`}
-                  className="p-3 rounded-lg border border-border hover:bg-accent transition-colors"
+                  className={`p-3 hover:bg-surface-high transition-colors ${
+                    idx % 2 === 0 ? 'bg-surface-low' : 'bg-surface-float'
+                  }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium text-sm text-foreground truncate">{stock.name}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{stock.code}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{stock.code}</div>
                   {stock.price !== null && (
                     <div className="mt-2 flex items-center justify-between">
                       <span className="font-mono text-sm">{stock.price.toFixed(2)}</span>
@@ -173,7 +182,7 @@ export default function StockPage() {
               ))}
             </div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   )

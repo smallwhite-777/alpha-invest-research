@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -7,7 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", Helvetica, Arial, sans-serif;
+  --font-sans: "Public Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -42,13 +44,19 @@
   --color-down: var(--down);
   --color-warning: var(--warning);
   --color-link: var(--link);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Surface hierarchy tokens */
+  --color-surface: var(--surface);
+  --color-surface-low: var(--surface-low);
+  --color-surface-high: var(--surface-high);
+  --color-surface-float: var(--surface-float);
+  /* 0px base radius — sharp corners */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
   --animate-scroll-left: scroll-left 30s linear infinite;
 }
 
@@ -57,122 +65,135 @@
   100% { transform: translateX(-50%); }
 }
 
-/* ========= DEFAULT (dark) ========= */
+/* ========= DEFAULT (light — "The Sovereign Analyst") ========= */
 :root {
-  --background: #050505;
-  --foreground: #f5f5f7;
-  --card: #0c0c0e;
-  --card-foreground: #f5f5f7;
-  --popover: #0c0c0e;
-  --popover-foreground: #f5f5f7;
-  --primary: #f5f5f7;
-  --primary-foreground: #050505;
-  --secondary: #1c1c1e;
-  --secondary-foreground: #f5f5f7;
-  --muted: #1c1c1e;
-  --muted-foreground: #636366;
-  --accent: #1c1c1e;
-  --accent-foreground: #f5f5f7;
-  --destructive: #ff453a;
-  --border: #1f1f22;
-  --input: #1f1f22;
-  --ring: #3b82f6;
-  --chart-1: #00d4aa;
-  --chart-2: #3b82f6;
-  --chart-3: #f59e0b;
-  --chart-4: #a855f7;
-  --chart-5: #ef4444;
-  --radius: 0.625rem;
-  --sidebar: #0a0a0c;
-  --sidebar-foreground: #f5f5f7;
-  --sidebar-primary: #00d4aa;
-  --sidebar-primary-foreground: #050505;
-  --sidebar-accent: #1c1c1e;
-  --sidebar-accent-foreground: #f5f5f7;
-  --sidebar-border: #1f1f22;
-  --sidebar-ring: #3b82f6;
-  --up: #34c759;
-  --down: #ff453a;
-  --warning: #ff9f0a;
-  --link: #3b82f6;
-}
-
-/* ========= DARK ========= */
-.dark {
-  --background: #050505;
-  --foreground: #f5f5f7;
-  --card: #0c0c0e;
-  --card-foreground: #f5f5f7;
-  --popover: #0c0c0e;
-  --popover-foreground: #f5f5f7;
-  --primary: #f5f5f7;
-  --primary-foreground: #050505;
-  --secondary: #1c1c1e;
-  --secondary-foreground: #f5f5f7;
-  --muted: #1c1c1e;
-  --muted-foreground: #636366;
-  --accent: #1c1c1e;
-  --accent-foreground: #f5f5f7;
-  --destructive: #ff453a;
-  --border: #1f1f22;
-  --input: #1f1f22;
-  --ring: #3b82f6;
-  --chart-1: #00d4aa;
-  --chart-2: #3b82f6;
-  --chart-3: #f59e0b;
-  --chart-4: #a855f7;
-  --chart-5: #ef4444;
-  --sidebar: #0a0a0c;
-  --sidebar-foreground: #f5f5f7;
-  --sidebar-primary: #00d4aa;
-  --sidebar-primary-foreground: #050505;
-  --sidebar-accent: #1c1c1e;
-  --sidebar-accent-foreground: #f5f5f7;
-  --sidebar-border: #1f1f22;
-  --sidebar-ring: #3b82f6;
-  --up: #34c759;
-  --down: #ff453a;
-  --warning: #ff9f0a;
-  --link: #3b82f6;
-}
-
-/* ========= LIGHT (Apple-inspired) ========= */
-.light {
-  --background: #f5f5f7;
-  --foreground: #1c1c1e;
-  --card: #ffffff;
-  --card-foreground: #1c1c1e;
+  --background: #fbf9f4;
+  --foreground: #1b1c19;
+  --card: #f5f3ee;
+  --card-foreground: #1b1c19;
   --popover: #ffffff;
-  --popover-foreground: #1c1c1e;
-  --primary: #1c1c1e;
+  --popover-foreground: #1b1c19;
+  --primary: #001629;
   --primary-foreground: #ffffff;
-  --secondary: #f2f2f7;
-  --secondary-foreground: #1c1c1e;
-  --muted: #f2f2f7;
-  --muted-foreground: #8e8e93;
-  --accent: #f2f2f7;
-  --accent-foreground: #1c1c1e;
-  --destructive: #ff3b30;
-  --border: #d1d1d6;
-  --input: #d1d1d6;
-  --ring: #007aff;
-  --chart-1: #34c759;
-  --chart-2: #007aff;
-  --chart-3: #ff9500;
-  --chart-4: #af52de;
-  --chart-5: #ff3b30;
-  --sidebar: #f9f9fb;
-  --sidebar-foreground: #1c1c1e;
-  --sidebar-primary: #007aff;
+  --secondary: #3f6653;
+  --secondary-foreground: #ffffff;
+  --muted: #f5f3ee;
+  --muted-foreground: #74796d;
+  --accent: #e4e2dd;
+  --accent-foreground: #1b1c19;
+  --destructive: #ba1a1a;
+  --border: transparent;
+  --input: #c3c7ce;
+  --ring: #001629;
+  --chart-1: #001629;
+  --chart-2: #3f6653;
+  --chart-3: #8b6914;
+  --chart-4: #58040f;
+  --chart-5: #c3c7ce;
+  --radius: 0px;
+  --sidebar: #f5f3ee;
+  --sidebar-foreground: #1b1c19;
+  --sidebar-primary: #001629;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f2f2f7;
-  --sidebar-accent-foreground: #1c1c1e;
-  --sidebar-border: #d1d1d6;
-  --sidebar-ring: #007aff;
-  --up: #34c759;
-  --down: #ff3b30;
-  --warning: #ff9500;
-  --link: #007aff;
+  --sidebar-accent: #e4e2dd;
+  --sidebar-accent-foreground: #1b1c19;
+  --sidebar-border: transparent;
+  --sidebar-ring: #001629;
+  --up: #3f6653;
+  --down: #58040f;
+  --warning: #8b6914;
+  --link: #001629;
+  /* Surface hierarchy */
+  --surface: #fbf9f4;
+  --surface-low: #f5f3ee;
+  --surface-high: #e4e2dd;
+  --surface-float: #ffffff;
+}
+
+/* ========= LIGHT ========= */
+.light {
+  --background: #fbf9f4;
+  --foreground: #1b1c19;
+  --card: #f5f3ee;
+  --card-foreground: #1b1c19;
+  --popover: #ffffff;
+  --popover-foreground: #1b1c19;
+  --primary: #001629;
+  --primary-foreground: #ffffff;
+  --secondary: #3f6653;
+  --secondary-foreground: #ffffff;
+  --muted: #f5f3ee;
+  --muted-foreground: #74796d;
+  --accent: #e4e2dd;
+  --accent-foreground: #1b1c19;
+  --destructive: #ba1a1a;
+  --border: transparent;
+  --input: #c3c7ce;
+  --ring: #001629;
+  --chart-1: #001629;
+  --chart-2: #3f6653;
+  --chart-3: #8b6914;
+  --chart-4: #58040f;
+  --chart-5: #c3c7ce;
+  --sidebar: #f5f3ee;
+  --sidebar-foreground: #1b1c19;
+  --sidebar-primary: #001629;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4e2dd;
+  --sidebar-accent-foreground: #1b1c19;
+  --sidebar-border: transparent;
+  --sidebar-ring: #001629;
+  --up: #3f6653;
+  --down: #58040f;
+  --warning: #8b6914;
+  --link: #001629;
+  --surface: #fbf9f4;
+  --surface-low: #f5f3ee;
+  --surface-high: #e4e2dd;
+  --surface-float: #ffffff;
+}
+
+/* ========= DARK (Inverted editorial) ========= */
+.dark {
+  --background: #0e0e0e;
+  --foreground: #e4e2dd;
+  --card: #181816;
+  --card-foreground: #e4e2dd;
+  --popover: #1c1c1a;
+  --popover-foreground: #e4e2dd;
+  --primary: #e4e2dd;
+  --primary-foreground: #0e0e0e;
+  --secondary: #6fa888;
+  --secondary-foreground: #0e0e0e;
+  --muted: #1c1c1a;
+  --muted-foreground: #8a8d82;
+  --accent: #252523;
+  --accent-foreground: #e4e2dd;
+  --destructive: #ff6b6b;
+  --border: transparent;
+  --input: #3a3a38;
+  --ring: #e4e2dd;
+  --chart-1: #e4e2dd;
+  --chart-2: #6fa888;
+  --chart-3: #d4a841;
+  --chart-4: #c65d65;
+  --chart-5: #5a5d56;
+  --sidebar: #141412;
+  --sidebar-foreground: #e4e2dd;
+  --sidebar-primary: #e4e2dd;
+  --sidebar-primary-foreground: #0e0e0e;
+  --sidebar-accent: #252523;
+  --sidebar-accent-foreground: #e4e2dd;
+  --sidebar-border: transparent;
+  --sidebar-ring: #e4e2dd;
+  --up: #6fa888;
+  --down: #c65d65;
+  --warning: #d4a841;
+  --link: #e4e2dd;
+  --surface: #0e0e0e;
+  --surface-low: #181816;
+  --surface-high: #252523;
+  --surface-float: #1c1c1a;
 }
 
 @layer base {
@@ -198,12 +219,38 @@
 /* ========= Custom scrollbar ========= */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-.dark ::-webkit-scrollbar-thumb { background: #2c2c2e; border-radius: 2px; }
-.light ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 0; }
 
-/* ========= Apple-style Light Mode Card Shadows ========= */
-.light .card-elevated {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.06);
+/* ========= Tonal Elevation (replaces box-shadow) ========= */
+.card-elevated {
+  background-color: var(--surface-low);
+}
+
+/* ========= Ambient Shadow — floating panels only ========= */
+.shadow-ambient {
+  box-shadow: 0 0 40px rgba(27, 28, 25, 0.06);
+}
+
+/* ========= Glass morphism for floating elements ========= */
+.glass {
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.glass-dark {
+  background: rgba(14, 14, 14, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.glass-light {
+  background: rgba(251, 249, 244, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ========= Ghost Border — 15% opacity for data tables ========= */
+.ghost-border {
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 15%, transparent);
 }
 
 /* ========= Smooth global transitions ========= */
@@ -211,15 +258,25 @@ button, select, input, a {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ========= Glass morphism for modals ========= */
-.glass-dark {
-  background: rgba(14,14,16,0.92);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
+/* ========= Serif headings ========= */
+.font-editorial {
+  font-family: "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+  font-weight: 600;
 }
-.glass-light {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.12);
+
+/* ========= Gradient CTA (lithographic depth) ========= */
+.gradient-primary {
+  background: linear-gradient(135deg, #001629, #002b49);
 }
+.dark .gradient-primary {
+  background: linear-gradient(135deg, #e4e2dd, #c3c7ce);
+}
+
+/* ========= Zebra striping for dense data ========= */
+.zebra-row:nth-child(even) {
+  background-color: var(--surface-low);
+}
+.zebra-row:nth-child(odd) {
+  background-color: var(--surface);
+}
+

@@ -74,10 +74,10 @@ interface Conversation {
 function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 overflow-hidden">
+    <div className="bg-surface-low overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 hover:bg-accent/30 transition-colors"
+        className="w-full flex items-center justify-between p-3 hover:bg-surface-high transition-colors"
       >
         <h4 className="text-sm font-medium text-foreground">{title}</h4>
         {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -107,20 +107,20 @@ function ThinkingChain({ steps, totalDuration }: { steps?: { name: string; statu
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-emerald-500/10 border-emerald-500/20'
+        return 'bg-emerald-500/10'
       case 'running':
-        return 'bg-amber-500/10 border-amber-500/20'
+        return 'bg-amber-500/10'
       case 'failed':
-        return 'bg-rose-500/10 border-rose-500/20'
+        return 'bg-rose-500/10'
       default:
-        return 'bg-muted/50 border-border'
+        return 'bg-surface-high'
     }
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card/30 p-4 mb-3">
+    <div className="bg-surface-low p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+        <h4 className="text-sm font-medium text-foreground flex items-center gap-2 font-editorial">
           <Brain className="h-4 w-4 text-primary" />
           思维链条
         </h4>
@@ -134,7 +134,7 @@ function ThinkingChain({ steps, totalDuration }: { steps?: { name: string; statu
         {steps.map((step, index) => (
           <div
             key={index}
-            className={`flex items-center justify-between p-2.5 rounded-lg border ${getStatusColor(step.status)} transition-colors`}
+            className={`flex items-center justify-between p-2.5 ${getStatusColor(step.status)} transition-colors`}
           >
             <div className="flex items-center gap-2.5">
               {getStatusIcon(step.status)}
@@ -154,30 +154,30 @@ function ThinkingChain({ steps, totalDuration }: { steps?: { name: string; statu
 function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: 'basic' | 'deep' }) {
   const getRecommendationLabel = (rec?: string) => {
     switch (rec) {
-      case 'buy': return { text: '买入', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' }
-      case 'hold': return { text: '持有', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' }
-      case 'sell': return { text: '卖出', color: 'bg-rose-500/10 text-rose-500 border-rose-500/20' }
-      case 'watch': return { text: '观望', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' }
-      default: return { text: '暂无建议', color: 'bg-muted text-muted-foreground border-transparent' }
+      case 'buy': return { text: '买入 BUY', color: 'bg-emerald-500/10 text-emerald-500' }
+      case 'hold': return { text: '持有 HOLD', color: 'bg-blue-500/10 text-blue-500' }
+      case 'sell': return { text: '卖出 SELL', color: 'bg-rose-500/10 text-rose-500' }
+      case 'watch': return { text: '观望 WATCH', color: 'bg-amber-500/10 text-amber-500' }
+      default: return { text: '暂无建议', color: 'bg-surface-high text-muted-foreground' }
     }
   }
 
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+      <div className="bg-surface-low p-4">
         <div className="flex items-center gap-2 mb-2">
           <span className={cn(
-            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border',
-            result.sentiment === 'positive' && 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-            result.sentiment === 'neutral' && 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-            result.sentiment === 'negative' && 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+            'inline-flex items-center px-2.5 py-0.5 text-xs font-medium',
+            result.sentiment === 'positive' && 'bg-emerald-500/10 text-emerald-500',
+            result.sentiment === 'neutral' && 'bg-amber-500/10 text-amber-500',
+            result.sentiment === 'negative' && 'bg-rose-500/10 text-rose-500'
           )}>
-            {result.sentiment === 'positive' && '看涨'}
-            {result.sentiment === 'neutral' && '中性'}
-            {result.sentiment === 'negative' && '看跌'}
+            {result.sentiment === 'positive' && '看涨 BULLISH'}
+            {result.sentiment === 'neutral' && '中性 NEUTRAL'}
+            {result.sentiment === 'negative' && '看跌 BEARISH'}
           </span>
-          <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border', getRecommendationLabel(result.recommendation).color)}>
+          <span className={cn('inline-flex items-center px-2.5 py-0.5 text-xs font-medium', getRecommendationLabel(result.recommendation).color)}>
             {getRecommendationLabel(result.recommendation).text}
           </span>
         </div>
@@ -187,11 +187,11 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
       {/* Key Points */}
       {result.keyPoints && result.keyPoints.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">关键要点</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide font-editorial">关键要点</h4>
           <div className="grid gap-2">
             {result.keyPoints.map((point, index) => (
-              <div key={index} className="flex items-start gap-3 text-sm text-foreground p-3 rounded-lg bg-accent/30">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+              <div key={index} className="flex items-start gap-3 text-sm text-foreground p-3 bg-surface-high">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-primary/10 text-xs font-medium text-primary">
                   {index + 1}
                 </span>
                 <span className="leading-relaxed">{point}</span>
@@ -203,8 +203,8 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
 
       {/* Valuation */}
       {result.valuation && (
-        <div className="rounded-lg border border-border/60 bg-card/50 p-4">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">估值分析</h4>
+        <div className="bg-surface-low p-4">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 font-editorial">估值分析</h4>
           <div className="grid grid-cols-2 gap-3">
             {result.valuation.method && (
               <div>
@@ -237,8 +237,8 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
       {/* Risk & Opportunities */}
       <div className="grid grid-cols-2 gap-3">
         {result.riskFactors && result.riskFactors.length > 0 && (
-          <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
-            <h4 className="text-xs font-medium text-rose-500 mb-2">⚠️ 风险提示</h4>
+          <div className="bg-rose-500/5 p-3">
+            <h4 className="text-xs font-medium text-rose-500 mb-2">风险提示</h4>
             <ul className="space-y-1">
               {result.riskFactors.slice(0, 3).map((risk, index) => (
                 <li key={index} className="text-xs text-foreground flex items-start gap-1.5">
@@ -250,8 +250,8 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
           </div>
         )}
         {result.opportunities && result.opportunities.length > 0 && (
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-            <h4 className="text-xs font-medium text-emerald-500 mb-2">💡 投资机会</h4>
+          <div className="bg-emerald-500/5 p-3">
+            <h4 className="text-xs font-medium text-emerald-500 mb-2">投资机会</h4>
             <ul className="space-y-1">
               {result.opportunities.slice(0, 3).map((opp, index) => (
                 <li key={index} className="text-xs text-foreground flex items-start gap-1.5">
@@ -268,9 +268,9 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
       {result.deepAnalysis && mode === 'deep' && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-border/60" />
-            <span className="text-xs font-medium text-muted-foreground">深度分析</span>
-            <div className="h-px flex-1 bg-border/60" />
+            <div className="h-px flex-1 bg-surface-high" />
+            <span className="text-xs font-medium text-muted-foreground font-editorial">深度分析</span>
+            <div className="h-px flex-1 bg-surface-high" />
           </div>
 
           {/* Business */}
@@ -319,13 +319,13 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
                     ) : (
                       <div className="mt-1 space-y-1">
                         {(result.deepAnalysis.valuationDeep.scenarios as any).bull && (
-                          <div className="text-emerald-600 text-xs">🐂 牛市: {(result.deepAnalysis.valuationDeep.scenarios as any).bull}</div>
+                          <div className="text-emerald-600 text-xs">Bull: {(result.deepAnalysis.valuationDeep.scenarios as any).bull}</div>
                         )}
                         {(result.deepAnalysis.valuationDeep.scenarios as any).base && (
-                          <div className="text-blue-600 text-xs">⚖️ 基准: {(result.deepAnalysis.valuationDeep.scenarios as any).base}</div>
+                          <div className="text-blue-600 text-xs">Base: {(result.deepAnalysis.valuationDeep.scenarios as any).base}</div>
                         )}
                         {(result.deepAnalysis.valuationDeep.scenarios as any).bear && (
-                          <div className="text-rose-600 text-xs">🐻 熊市: {(result.deepAnalysis.valuationDeep.scenarios as any).bear}</div>
+                          <div className="text-rose-600 text-xs">Bear: {(result.deepAnalysis.valuationDeep.scenarios as any).bear}</div>
                         )}
                       </div>
                     )}
@@ -341,7 +341,7 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
               <div className="space-y-3 text-sm">
                 {result.deepAnalysis.monitoring.drivers && result.deepAnalysis.monitoring.drivers.length > 0 && (
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">📈 关键驱动因素：</div>
+                    <div className="text-xs text-muted-foreground mb-1">关键驱动因素：</div>
                     <ul className="space-y-1 ml-2">
                       {result.deepAnalysis.monitoring.drivers.map((d, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs"><span className="text-emerald-500">•</span><span>{d}</span></li>
@@ -351,7 +351,7 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
                 )}
                 {result.deepAnalysis.monitoring.risks && result.deepAnalysis.monitoring.risks.length > 0 && (
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">⚠️ 风险信号：</div>
+                    <div className="text-xs text-muted-foreground mb-1">风险信号：</div>
                     <ul className="space-y-1 ml-2">
                       {result.deepAnalysis.monitoring.risks.map((r, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs"><span className="text-rose-500">•</span><span>{r}</span></li>
@@ -375,8 +375,8 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
                 klarman: 'Klarman', tepper: 'Tepper', druck: 'Druckenmiller'
               }
               return (
-                <div key={key} className="p-2 rounded bg-accent/20">
-                  <div className="font-medium text-primary">{labels[key]}视角</div>
+                <div key={key} className="p-2 bg-surface-high">
+                  <div className="font-medium text-primary">{labels[key]}</div>
                   <div className="text-muted-foreground mt-0.5">{view.view}</div>
                 </div>
               )
@@ -387,27 +387,33 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
 
       {/* Variant View */}
       {result.variantView && mode === 'deep' && (
-        <CollapsibleSection title="Variant View">
+        <CollapsibleSection title="差异观点">
           <div className="space-y-2 text-sm">
-            <div className="p-2 rounded bg-rose-500/5 border border-rose-500/10">
+            <div className="p-2 bg-rose-500/5">
               <div className="text-rose-500 text-xs font-medium">市场共识</div>
               <div className="text-xs mt-0.5">{result.variantView.consensus}</div>
             </div>
-            <div className="p-2 rounded bg-emerald-500/5 border border-emerald-500/10">
+            <div className="p-2 bg-emerald-500/5">
               <div className="text-emerald-500 text-xs font-medium">我们的观点</div>
               <div className="text-xs mt-0.5">{result.variantView.ourView}</div>
             </div>
+            {result.variantView.whyDifferent && (
+              <div className="p-2 bg-surface-high">
+                <div className="text-primary text-xs font-medium">差异原因</div>
+                <div className="text-xs mt-0.5">{result.variantView.whyDifferent}</div>
+              </div>
+            )}
           </div>
         </CollapsibleSection>
       )}
 
       {/* Pre-Mortem */}
       {result.preMortem && result.preMortem.length > 0 && mode === 'deep' && (
-        <CollapsibleSection title="Pre-Mortem">
+        <CollapsibleSection title="事前验尸">
           <ul className="space-y-2 text-xs">
             {result.preMortem.map((path, i) => (
               <li key={i} className="flex items-start gap-2">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-xs font-medium text-rose-500">{i + 1}</span>
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-rose-500/10 text-xs font-medium text-rose-500">{i + 1}</span>
                 <span>{path}</span>
               </li>
             ))}
@@ -686,7 +692,7 @@ export default function AnalyzePage() {
       // 更新为错误消息
       setMessages(prev => prev.map(msg =>
         msg.id === loadingMessageId
-          ? { ...msg, isLoading: false, content: '❌ 请求失败：' + (err instanceof Error ? err.message : '未知错误') }
+          ? { ...msg, isLoading: false, content: 'Request failed: ' + (err instanceof Error ? err.message : '未知错误') }
           : msg
       ))
     } finally {
@@ -753,15 +759,15 @@ export default function AnalyzePage() {
     <div className="h-full flex">
       {/* 侧边栏 - 历史记录 (始终显示，有历史时展示) */}
       {conversations.length > 0 && (
-        <div className="w-64 border-r border-border bg-card flex flex-col shrink-0">
-          <div className="p-3 border-b border-border flex items-center justify-between">
-            <h2 className="font-semibold text-foreground flex items-center gap-2 text-sm">
+        <div className="w-64 bg-surface-low flex flex-col shrink-0">
+          <div className="p-3 bg-surface-high flex items-center justify-between">
+            <h2 className="font-semibold text-foreground flex items-center gap-2 text-sm font-editorial">
               <History className="h-4 w-4" />
               历史对话
             </h2>
             <button
               onClick={newChat}
-              className="p-1.5 rounded hover:bg-accent transition-colors"
+              className="p-1.5 hover:bg-surface-float transition-colors"
               title="新建对话"
             >
               <Plus className="h-4 w-4" />
@@ -774,10 +780,10 @@ export default function AnalyzePage() {
                 key={conv.id}
                 onClick={() => loadConversation(conv)}
                 className={cn(
-                  'group p-3 rounded-lg cursor-pointer transition-colors',
+                  'group p-3 cursor-pointer transition-colors',
                   currentConversationId === conv.id
-                    ? 'bg-primary/10 border border-primary/20'
-                    : 'hover:bg-accent border border-transparent'
+                    ? 'bg-primary/10'
+                    : 'hover:bg-surface-high'
                 )}
               >
                 <div className="font-medium text-sm text-foreground truncate">
@@ -792,7 +798,7 @@ export default function AnalyzePage() {
                       e.stopPropagation()
                       deleteConversation(conv.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-500/10 hover:text-rose-500 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-500/10 hover:text-rose-500 transition-all"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -806,12 +812,12 @@ export default function AnalyzePage() {
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="border-b border-border px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="bg-surface-low px-6 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {conversations.length === 0 && (
               <button
                 onClick={newChat}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 新对话
@@ -833,43 +839,43 @@ export default function AnalyzePage() {
             // 欢迎界面
             <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto">
               <div className="text-center space-y-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto">
+                <div className="flex h-16 w-16 items-center justify-center bg-primary/10 mx-auto">
                   <Bot className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground mb-2">智能投研助手</h1>
-                  <p className="text-muted-foreground">上传研报获取AI分析 · 基于知识库情报提问 · 思维链条可视化</p>
+                  <h1 className="text-2xl font-bold text-foreground mb-2 font-editorial">智能投研助手</h1>
+                  <p className="text-muted-foreground">上传研报获取AI分析 -- 基于知识库情报提问 -- 思维链条可视化</p>
                 </div>
 
                 {/* 快速示例 */}
                 <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
                   <button
                     onClick={() => setInputText('最近有哪些值得关注的产业链变化？')}
-                    className="px-3 py-1.5 rounded-full bg-accent text-xs text-foreground hover:bg-accent/80 transition-colors"
+                    className="px-3 py-1.5 bg-surface-high text-xs text-foreground hover:bg-surface-float transition-colors"
                   >
                     产业链变化
                   </button>
                   <button
                     onClick={() => setInputText('半导体行业近期有什么重要动态？')}
-                    className="px-3 py-1.5 rounded-full bg-accent text-xs text-foreground hover:bg-accent/80 transition-colors"
+                    className="px-3 py-1.5 bg-surface-high text-xs text-foreground hover:bg-surface-float transition-colors"
                   >
                     半导体动态
                   </button>
                   <button
                     onClick={() => setInputText('有哪些高重要性的情报需要关注？')}
-                    className="px-3 py-1.5 rounded-full bg-accent text-xs text-foreground hover:bg-accent/80 transition-colors"
+                    className="px-3 py-1.5 bg-surface-high text-xs text-foreground hover:bg-surface-float transition-colors"
                   >
                     重要情报
                   </button>
                   <button
                     onClick={() => setInputText('帮我梳理一下新能源相关的信息')}
-                    className="px-3 py-1.5 rounded-full bg-accent text-xs text-foreground hover:bg-accent/80 transition-colors"
+                    className="px-3 py-1.5 bg-surface-high text-xs text-foreground hover:bg-surface-float transition-colors"
                   >
                     新能源梳理
                   </button>
                   <button
                     onClick={() => setInputText('AI行业有哪些值得关注的公司？')}
-                    className="px-3 py-1.5 rounded-full bg-accent text-xs text-foreground hover:bg-accent/80 transition-colors"
+                    className="px-3 py-1.5 bg-surface-high text-xs text-foreground hover:bg-surface-float transition-colors"
                   >
                     AI行业分析
                   </button>
@@ -880,7 +886,7 @@ export default function AnalyzePage() {
                     <Upload className="h-3.5 w-3.5" />
                     拖拽文件上传研报
                   </span>
-                  <span className="text-border">|</span>
+                  <span className="text-muted-foreground/40">|</span>
                   <span className="flex items-center gap-1">
                     <Database className="h-3.5 w-3.5" />
                     自动检索知识库情报
@@ -895,8 +901,8 @@ export default function AnalyzePage() {
                 <div key={message.id} className={cn('flex gap-4', message.role === 'user' ? 'flex-row-reverse' : '')}>
                   {/* Avatar */}
                   <div className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                    message.role === 'user' ? 'bg-accent' : 'bg-primary/10'
+                    'flex h-8 w-8 shrink-0 items-center justify-center',
+                    message.role === 'user' ? 'bg-surface-high' : 'bg-primary/10'
                   )}>
                     {message.role === 'user' ? (
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -911,14 +917,14 @@ export default function AnalyzePage() {
                     {message.role === 'user' && (
                       <div className="inline-block">
                         {message.content && (
-                          <div className="rounded-2xl rounded-tr-sm bg-accent px-4 py-2.5 text-sm text-foreground inline-block text-left">
+                          <div className="bg-surface-high px-4 py-2.5 text-sm text-foreground inline-block text-left">
                             {message.content}
                           </div>
                         )}
                         {message.files && message.files.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2 justify-end">
                             {message.files.map((file, idx) => (
-                              <div key={idx} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs">
+                              <div key={idx} className="inline-flex items-center gap-1.5 bg-surface-low px-2.5 py-1.5 text-xs">
                                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="truncate max-w-[120px]">{file.name}</span>
                                 <span className="text-muted-foreground">{formatFileSize(file.size)}</span>
@@ -929,7 +935,7 @@ export default function AnalyzePage() {
                         {message.analysisMode && (
                           <div className="mt-1.5">
                             <span className={cn(
-                              'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full',
+                              'inline-flex items-center gap-1 text-xs px-2 py-0.5',
                               message.analysisMode === 'deep'
                                 ? 'bg-purple-500/10 text-purple-500'
                                 : 'bg-blue-500/10 text-blue-500'
@@ -944,28 +950,28 @@ export default function AnalyzePage() {
 
                     {/* Assistant message */}
                     {message.role === 'assistant' && message.result && (
-                      <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-card/50 p-4">
+                      <div className="bg-surface-low p-4">
                         <AnalysisResultCard result={message.result} mode={message.analysisMode} />
                       </div>
                     )}
 
                     {/* Loading state */}
                     {message.role === 'assistant' && message.isLoading && (
-                      <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-card/50 px-5 py-6">
+                      <div className="bg-surface-low px-5 py-6">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <div className="h-5 w-5 rounded-full border-2 border-primary/30"></div>
-                            <div className="absolute inset-0 h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+                            <div className="h-5 w-5 border-2 border-primary/30"></div>
+                            <div className="absolute inset-0 h-5 w-5 border-2 border-primary border-t-transparent animate-spin"></div>
                           </div>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm font-medium text-foreground">正在分析中...</span>
-                            <span className="text-xs text-muted-foreground">AI 正在检索知识库并生成回答</span>
+                            <span className="text-xs text-muted-foreground">AI 正在检索知识库并生成回复</span>
                           </div>
                         </div>
                         <div className="mt-4 flex gap-1">
-                          <div className="h-2 w-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '0ms' }}></div>
-                          <div className="h-2 w-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                          <div className="h-2 w-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                          <div className="h-2 w-2 bg-primary/40 animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                          <div className="h-2 w-2 bg-primary/40 animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                          <div className="h-2 w-2 bg-primary/40 animate-pulse" style={{ animationDelay: '300ms' }}></div>
                         </div>
                       </div>
                     )}
@@ -977,12 +983,12 @@ export default function AnalyzePage() {
                         {message.steps && message.steps.length > 0 && (
                           <ThinkingChain steps={message.steps} totalDuration={message.total_duration_ms} />
                         )}
-                        <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-card/50 px-5 py-4">
+                        <div className="bg-surface-low px-5 py-4">
                           <FormattedMessage content={message.content} />
                         </div>
                         {/* Knowledge base sources */}
                         {message.sources && message.sources.length > 0 && (
-                          <div className="rounded-lg border border-border/40 bg-muted/30 px-3 py-2">
+                          <div className="bg-surface-high px-3 py-2">
                             <div className="flex items-center gap-2 mb-2">
                               <Database className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="text-xs font-medium text-muted-foreground">参考来源</span>
@@ -991,7 +997,7 @@ export default function AnalyzePage() {
                               {message.sources.slice(0, 6).map((s, idx) => (
                                 <span
                                   key={idx}
-                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 cursor-default transition-colors"
+                                  className="inline-flex items-center gap-1 bg-surface-low px-2 py-1 text-xs text-muted-foreground hover:text-foreground cursor-default transition-colors"
                                   title={s.title}
                                 >
                                   {s.type === 'annual_report' && <FileText className="h-3 w-3" />}
@@ -1000,7 +1006,7 @@ export default function AnalyzePage() {
                               ))}
                               {message.sources.length > 6 && (
                                 <span className="text-xs text-muted-foreground/60 py-1">
-                                  +{message.sources.length - 6} 条
+                                  +{message.sources.length - 6} more
                                 </span>
                               )}
                             </div>
@@ -1017,11 +1023,11 @@ export default function AnalyzePage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-border px-6 py-4 shrink-0">
+        <div className="bg-surface-low px-6 py-4 shrink-0">
           <div className="max-w-3xl mx-auto">
             {/* Error */}
             {error && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive text-sm">
+              <div className="mb-3 flex items-center gap-2 bg-destructive/10 p-3 text-destructive text-sm">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -1031,12 +1037,12 @@ export default function AnalyzePage() {
             {pendingFiles.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {pendingFiles.map((file) => (
-                  <div key={file.id} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-accent/50 px-2.5 py-1.5 text-xs">
+                  <div key={file.id} className="inline-flex items-center gap-1.5 bg-surface-high px-2.5 py-1.5 text-xs">
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="truncate max-w-[120px]">{file.name}</span>
                     <button
                       onClick={() => removePendingFile(file.id)}
-                      className="ml-1 p-0.5 hover:bg-accent rounded"
+                      className="ml-1 p-0.5 hover:bg-surface-float"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -1047,13 +1053,13 @@ export default function AnalyzePage() {
 
             {/* Input Box */}
             <div className="relative">
-              <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-end gap-2 bg-surface-high p-3">
                 {/* Mode Selector Dropdown */}
                 <div ref={modeDropdownRef} className="relative shrink-0">
                   <button
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
                     className={cn(
-                      'flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium transition-colors',
+                      'flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors',
                       analysisMode === 'deep'
                         ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'
                         : 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'
@@ -1061,13 +1067,13 @@ export default function AnalyzePage() {
                     title={analysisMode === 'deep' ? '深度分析' : '快速分析'}
                   >
                     {analysisMode === 'deep' ? <Brain className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                    <span className="hidden sm:inline">{analysisMode === 'deep' ? '深度' : '快速'}</span>
+                    <span className="hidden sm:inline">{analysisMode === 'deep' ? 'Deep' : 'Quick'}</span>
                     <ChevronDown className={cn('h-3 w-3 transition-transform', showModeDropdown && 'rotate-180')} />
                   </button>
 
                   {/* Dropdown Menu */}
                   {showModeDropdown && (
-                    <div className="absolute bottom-full left-0 mb-2 w-40 rounded-xl border border-border bg-card shadow-lg z-50 overflow-hidden">
+                    <div className="absolute bottom-full left-0 mb-2 w-40 bg-surface-float z-50 overflow-hidden">
                       <button
                         onClick={() => {
                           setAnalysisMode('basic')
@@ -1077,17 +1083,17 @@ export default function AnalyzePage() {
                           'w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left',
                           analysisMode === 'basic'
                             ? 'bg-blue-500/10 text-blue-500'
-                            : 'hover:bg-accent'
+                            : 'hover:bg-surface-high'
                         )}
                       >
                         <Zap className="h-4 w-4" />
                         <div className="flex-1">
                           <div className="font-medium">快速分析</div>
-                          <div className="text-xs text-muted-foreground">适合新闻快讯</div>
+                          <div className="text-xs text-muted-foreground">适用于新闻简报</div>
                         </div>
-                        {analysisMode === 'basic' && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                        {analysisMode === 'basic' && <div className="w-1.5 h-1.5 bg-blue-500" />}
                       </button>
-                      <div className="h-px bg-border" />
+                      <div className="h-px bg-surface-high" />
                       <button
                         onClick={() => {
                           setAnalysisMode('deep')
@@ -1097,15 +1103,15 @@ export default function AnalyzePage() {
                           'w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left',
                           analysisMode === 'deep'
                             ? 'bg-purple-500/10 text-purple-500'
-                            : 'hover:bg-accent'
+                            : 'hover:bg-surface-high'
                         )}
                       >
                         <Brain className="h-4 w-4" />
                         <div className="flex-1">
                           <div className="font-medium">深度分析</div>
-                          <div className="text-xs text-muted-foreground">适合研究报告</div>
+                          <div className="text-xs text-muted-foreground">适用于研究报告</div>
                         </div>
-                        {analysisMode === 'deep' && <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                        {analysisMode === 'deep' && <div className="w-1.5 h-1.5 bg-purple-500" />}
                       </button>
                     </div>
                   )}
@@ -1114,7 +1120,7 @@ export default function AnalyzePage() {
                 {/* Upload Button */}
                 <button
                   onClick={open}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:bg-surface-float hover:text-foreground transition-colors"
                   title="上传文件"
                 >
                   <Upload className="h-5 w-5" />
@@ -1140,7 +1146,7 @@ export default function AnalyzePage() {
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || (!inputText.trim() && pendingFiles.length === 0)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isAnalyzing ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -1153,9 +1159,9 @@ export default function AnalyzePage() {
               {/* Drag Overlay - 全屏覆盖 */}
               {isDragActive && (
                 <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                  <div className="rounded-2xl border-2 border-dashed border-primary bg-primary/5 px-12 py-8">
+                  <div className="border-2 border-dashed border-primary bg-primary/5 px-12 py-8">
                     <Upload className="h-12 w-12 text-primary mx-auto mb-3" />
-                    <p className="text-lg font-medium text-primary">松开鼠标上传文件</p>
+                    <p className="text-lg font-medium text-primary font-editorial">松开鼠标上传文件</p>
                   </div>
                 </div>
               )}
@@ -1163,7 +1169,7 @@ export default function AnalyzePage() {
 
             {/* Hint */}
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              支持 PDF、Word、TXT、Markdown • Enter 发送，Shift+Enter 换行 • 文字提问自动检索知识库
+              PDF, Word, TXT, Markdown -- Enter to send, Shift+Enter for newline -- Text queries auto-retrieve knowledge base
             </p>
           </div>
         </div>

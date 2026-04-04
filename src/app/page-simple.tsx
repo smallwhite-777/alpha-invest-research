@@ -92,7 +92,7 @@ export default function SimpleDashboard() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-              Macro Indicators
+              宏观指标
             </span>
             <span className="text-xs text-up flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-up rounded-full animate-pulse" />
@@ -134,7 +134,7 @@ export default function SimpleDashboard() {
           <div className="rounded-2xl border border-border bg-card p-5 card-elevated">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                Time Series Analysis & Correlation
+                时序相关性分析
               </span>
               <Link href="/macro" className="text-sm text-muted-foreground hover:text-foreground transition">
                 高级分析 →
@@ -232,7 +232,7 @@ export default function SimpleDashboard() {
           <div className="rounded-2xl border border-border bg-card p-5 card-elevated shrink-0">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                Sector Performance
+                板块表现
               </span>
               <Link href="/stock" className="text-sm text-muted-foreground hover:text-foreground transition">
                 全部 →
@@ -275,7 +275,7 @@ export default function SimpleDashboard() {
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                  Alpha Insights
+                  情报动态
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded-lg bg-destructive/10 text-destructive font-semibold tabular-nums">
                   {MOCK_INSIGHTS.length}

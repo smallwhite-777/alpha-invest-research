@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
 import { useTheme } from 'next-themes'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -74,35 +73,35 @@ export default function MacroPage() {
     <div className="mx-auto max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">宏观看板</h1>
+          <h1 className="font-editorial text-xl font-semibold text-foreground">宏观看板</h1>
           <p className="text-sm text-muted-foreground mt-1">宏观指标监测与相关性分析</p>
         </div>
       </div>
 
       {indicatorsError && (
-        <div className="text-red-500 mb-4">加载指标失败，请刷新页面重试</div>
+        <div className="text-down mb-4">加载指标失败，请刷新页面重试</div>
       )}
 
       {isLoading ? (
         <div className="text-muted-foreground">加载中...</div>
       ) : (
         <Tabs defaultValue="indicators" className="space-y-4">
-          <TabsList className="bg-card border-border">
-            <TabsTrigger value="indicators" className="data-[state=active]:bg-accent">指标概览</TabsTrigger>
-            <TabsTrigger value="correlation" className="data-[state=active]:bg-accent">相关性分析</TabsTrigger>
-            <TabsTrigger value="comparison" className="data-[state=active]:bg-accent">双轴对比</TabsTrigger>
+          <TabsList className="bg-surface-low rounded-none">
+            <TabsTrigger value="indicators" className="rounded-none data-[state=active]:bg-surface-high">指标概览</TabsTrigger>
+            <TabsTrigger value="correlation" className="rounded-none data-[state=active]:bg-surface-high">相关性分析</TabsTrigger>
+            <TabsTrigger value="comparison" className="rounded-none data-[state=active]:bg-surface-high">双轴对比</TabsTrigger>
           </TabsList>
 
           <TabsContent value="indicators" className="space-y-4">
             <div className="flex gap-4 mb-4">
               <Select value={category} onValueChange={(v) => v && setCategory(v)}>
-                <SelectTrigger className="w-[180px] bg-card border-border text-foreground">
+                <SelectTrigger className="w-[180px] bg-surface-low rounded-none text-foreground">
                   <SelectValue placeholder="全部分类" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="all" className="text-foreground">全部分类</SelectItem>
+                <SelectContent className="bg-surface-float rounded-none">
+                  <SelectItem value="all" className="rounded-none text-foreground">全部分类</SelectItem>
                   {MACRO_CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value} className="text-foreground">
+                    <SelectItem key={c.value} value={c.value} className="rounded-none text-foreground">
                       {c.label}
                     </SelectItem>
                   ))}
@@ -139,13 +138,12 @@ function IndicatorCard({ indicator, dataMap }: { indicator: MacroIndicator; data
   const categoryLabel = MACRO_CATEGORIES.find(c => c.value === indicator.category)?.label
 
   return (
-    <Card className="p-4 bg-card border-border hover:border-ring/30 transition-colors">
+    <div className="p-4 bg-surface-low hover:bg-surface-high transition-colors">
       <div className="flex items-start justify-between mb-2">
         <div>
           <h3 className="text-sm font-medium text-foreground">{indicator.name}</h3>
-          <p className="text-xs text-muted-foreground/60">{indicator.code}</p>
         </div>
-        <Badge variant="outline" className="text-xs border-border text-muted-foreground">
+        <Badge variant="outline" className="text-xs rounded-none text-muted-foreground">
           {categoryLabel || indicator.category}
         </Badge>
       </div>
@@ -169,7 +167,7 @@ function IndicatorCard({ indicator, dataMap }: { indicator: MacroIndicator; data
       )}
 
       <MiniChart data={data} />
-    </Card>
+    </div>
   )
 }
 
@@ -261,17 +259,18 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 bg-card border-border">
+      <div className="p-4 bg-surface-low">
+        <h3 className="font-editorial text-sm font-medium text-foreground mb-4">参数选择</h3>
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">X轴指标</label>
             <Select value={codeX} onValueChange={(v) => v && setCodeX(v)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
+              <SelectTrigger className="bg-surface rounded-none text-foreground">
                 <SelectValue placeholder="选择指标" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-surface-float rounded-none">
                 {indicators.map(i => (
-                  <SelectItem key={i.code} value={i.code} className="text-foreground">
+                  <SelectItem key={i.code} value={i.code} className="rounded-none text-foreground">
                     {i.name}
                   </SelectItem>
                 ))}
@@ -282,12 +281,12 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Y轴指标</label>
             <Select value={codeY} onValueChange={(v) => v && setCodeY(v)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
+              <SelectTrigger className="bg-surface rounded-none text-foreground">
                 <SelectValue placeholder="选择指标" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-surface-float rounded-none">
                 {indicators.map(i => (
-                  <SelectItem key={i.code} value={i.code} className="text-foreground">
+                  <SelectItem key={i.code} value={i.code} className="rounded-none text-foreground">
                     {i.name}
                   </SelectItem>
                 ))}
@@ -296,14 +295,14 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
           </div>
 
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">滞后期（月）</label>
+            <label className="text-sm text-muted-foreground mb-2 block">滞后期 (月)</label>
             <Select value={lag} onValueChange={(v) => v && setLag(v)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
+              <SelectTrigger className="bg-surface rounded-none text-foreground">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-surface-float rounded-none">
                 {[0, 1, 3, 6, 12].map(l => (
-                  <SelectItem key={l} value={l.toString()} className="text-foreground">
+                  <SelectItem key={l} value={l.toString()} className="rounded-none text-foreground">
                     {l === 0 ? '同期' : `${l}个月`}
                   </SelectItem>
                 ))}
@@ -315,16 +314,17 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
             <Button
               onClick={calculateCorrelation}
               disabled={loading || !codeX || !codeY}
-              className="bg-link text-white hover:bg-link/90"
+              className="bg-link text-white hover:bg-link/90 rounded-none"
             >
               {loading ? '计算中...' : '计算相关性'}
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
       {result && mounted && (
-        <Card className="p-4 bg-card border-border">
+        <div className="p-4 bg-surface-low">
+          <h3 className="font-editorial text-sm font-medium text-foreground mb-4">分析结果</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground">相关系数 (r)</p>
@@ -333,7 +333,7 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">R²</p>
+              <p className="text-xs text-muted-foreground">决定系数 (R²)</p>
               <p className="text-xl font-semibold text-foreground">
                 {result.regression.r2.toFixed(3)}
               </p>
@@ -347,7 +347,7 @@ function CorrelationAnalysis({ indicators }: { indicators: MacroIndicator[] }) {
           </div>
 
           <ScatterChart result={result} codeX={codeX} codeY={codeY} indicators={indicators} isDark={isDark} colors={colors} />
-        </Card>
+        </div>
       )}
     </div>
   )
@@ -494,17 +494,18 @@ function DualAxisComparison({ indicators }: { indicators: MacroIndicator[] }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 bg-card border-border">
+      <div className="p-4 bg-surface-low">
+        <h3 className="font-editorial text-sm font-medium text-foreground mb-4">指标选择</h3>
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">左轴指标</label>
             <Select value={code1} onValueChange={(v) => v && setCode1(v)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
+              <SelectTrigger className="bg-surface rounded-none text-foreground">
                 <SelectValue placeholder="选择指标" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-surface-float rounded-none">
                 {indicators.map(i => (
-                  <SelectItem key={i.code} value={i.code} className="text-foreground">
+                  <SelectItem key={i.code} value={i.code} className="rounded-none text-foreground">
                     {i.name}
                   </SelectItem>
                 ))}
@@ -515,12 +516,12 @@ function DualAxisComparison({ indicators }: { indicators: MacroIndicator[] }) {
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">右轴指标</label>
             <Select value={code2} onValueChange={(v) => v && setCode2(v)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
+              <SelectTrigger className="bg-surface rounded-none text-foreground">
                 <SelectValue placeholder="选择指标" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border">
+              <SelectContent className="bg-surface-float rounded-none">
                 {indicators.map(i => (
-                  <SelectItem key={i.code} value={i.code} className="text-foreground">
+                  <SelectItem key={i.code} value={i.code} className="rounded-none text-foreground">
                     {i.name}
                   </SelectItem>
                 ))}
@@ -528,12 +529,12 @@ function DualAxisComparison({ indicators }: { indicators: MacroIndicator[] }) {
             </Select>
           </div>
         </div>
-      </Card>
+      </div>
 
       {code1 && code2 && mounted && (
-        <Card className="p-4 bg-card border-border">
+        <div className="p-4 bg-surface-low">
           <ReactECharts option={option} theme={getThemeName(isDark)} style={{ height: 400 }} />
-        </Card>
+        </div>
       )}
     </div>
   )

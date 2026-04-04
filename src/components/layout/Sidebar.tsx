@@ -24,24 +24,19 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200',
+        'flex h-screen flex-col bg-surface-low transition-all duration-200',
         collapsed ? 'w-[60px]' : 'w-[220px]'
       )}
     >
-      {/* Logo - only show icon, text is in TopBar */}
-      <div
-        className={cn(
-          'flex h-[48px] items-center border-b border-sidebar-border px-4',
-          'justify-center'
-        )}
-      >
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
+      {/* Logo */}
+      <div className="flex h-14 items-center justify-center px-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center gradient-primary text-xs font-bold text-primary-foreground tracking-widest">
           A
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 px-2 py-3">
+      {/* Navigation — asymmetrical, editorial feel */}
+      <nav className="flex-1 space-y-0.5 px-3 py-4">
         {NAV_ITEMS.map((item) => {
           const Icon = ICON_MAP[item.icon as keyof typeof ICON_MAP]
           const isActive =
@@ -52,26 +47,30 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-150',
                 collapsed && 'justify-center px-2',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary font-medium'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                  ? 'bg-surface-high text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-surface-high/60 hover:text-foreground'
               )}
               title={collapsed ? item.label : undefined}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && (
+                <div className="flex flex-col">
+                  <span className="text-xs uppercase tracking-wider">{item.label}</span>
+                </div>
+              )}
             </Link>
           )
         })}
       </nav>
 
       {/* Collapse toggle */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="p-3">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-center rounded-xl py-2 text-muted-foreground transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          className="flex w-full items-center justify-center py-2 text-muted-foreground transition-all duration-150 hover:bg-surface-high hover:text-foreground"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />
