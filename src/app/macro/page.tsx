@@ -323,7 +323,12 @@ export default function MacroPage() {
                   />
                   <div>
                     <label className="mb-2 block text-sm text-muted-foreground">{'\u6ede\u540e\u671f\uff08\u6708\uff09'}</label>
-                    <Select value={lag} onValueChange={setLag}>
+                    <Select
+                      value={lag}
+                      onValueChange={(value) => {
+                        if (value) setLag(value)
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -415,7 +420,12 @@ function IndicatorPicker({
   return (
     <div>
       <label className="mb-2 block text-sm text-muted-foreground">{label}</label>
-      <Select value={value} onValueChange={onChange}>
+      <Select
+        value={value}
+        onValueChange={(nextValue) => {
+          if (nextValue) onChange(nextValue)
+        }}
+      >
         <SelectTrigger>
           <SelectValue placeholder={'\u9009\u62e9\u6307\u6807'} />
         </SelectTrigger>

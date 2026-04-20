@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { registerThemes, getChartColors } from '@/lib/chart-theme'
 import { StockAIChat } from '@/components/stock/StockAIChat'
+import { formatAmountYi } from '@/lib/financial-format'
 import { FinancialAnalysis } from '@/components/stock/financial/FinancialAnalysis'
 import { useAllFinancialModules } from '@/hooks/useFinancialData'
 
@@ -253,7 +254,9 @@ export default function StockDetailPage({ params }: PageProps) {
     const latestDupont = dupont?.history?.slice(-1)[0]
     const riskLevel = risk?.fraud_detection?.risk_level
     const fraudScore = risk?.fraud_detection?.m_score
-    const warnings = risk?.warnings?.map((warning) => warning.detail).filter(Boolean)
+    const warnings = risk?.warnings
+      ?.map((warning) => warning.detail)
+      .filter((warning): warning is string => Boolean(warning))
     const healthScore = risk?.health_score
     const revenueGrowth = growth?.cagr?.revenue_3yr
     const dcfValue = dcf?.intrinsic_value
@@ -263,7 +266,7 @@ export default function StockDetailPage({ params }: PageProps) {
     return {
       pageType: 'stock-detail' as const,
       financialSummary: {
-        marketCap: metrics?.market_cap,
+        marketCap: metrics?.market_cap ? formatAmountYi(metrics.market_cap) : undefined,
         pe: metrics?.pe_ttm,
         pb: metrics?.pb,
         roe: latestDupont?.roe,

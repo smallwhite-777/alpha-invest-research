@@ -44,6 +44,12 @@ const HOME_CHART_PAIRS = [
   { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '工业价格 vs 原油' },
 ]
 
+const CLEAN_HOME_CHART_PAIRS = [
+  { codeX: 'CN_M2_YOY', codeY: 'US_M2SL_M', title: '中美流动性对比' },
+  { codeX: 'PMI_CHN', codeY: 'US_DGS10_M', title: '景气度 vs 美债利率' },
+  { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '工业价格 vs 原油' },
+]
+
 const MARKET_API = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:5003'
 
 const jsonFetcher = async <T,>(url: string): Promise<T> => {
@@ -89,7 +95,7 @@ function latestChange(points: Array<{ date: string; value: number }>) {
   return ((latest - previous) / Math.abs(previous)) * 100
 }
 
-function getTagName(tag: Insight['tags'][number]) {
+function getTagName(tag: NonNullable<Insight['tags']>[number]) {
   return tag?.name || tag?.tag?.name || ''
 }
 
@@ -103,7 +109,8 @@ export default function Dashboard() {
   })
 
   const indicatorCodes = useMemo(
-    () => Array.from(new Set([...HOME_MACRO_CODES, ...HOME_CHART_PAIRS.flatMap((pair) => [pair.codeX, pair.codeY])])).join(','),
+    () =>
+      Array.from(new Set([...HOME_MACRO_CODES, ...CLEAN_HOME_CHART_PAIRS.flatMap((pair) => [pair.codeX, pair.codeY])])).join(','),
     []
   )
 
@@ -212,7 +219,7 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              {HOME_CHART_PAIRS.map((pair) => (
+              {CLEAN_HOME_CHART_PAIRS.map((pair) => (
                 <HomeChartPanel
                   key={`${pair.codeX}-${pair.codeY}`}
                   pair={pair}
