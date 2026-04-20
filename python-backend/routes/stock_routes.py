@@ -6,11 +6,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import re
+import time
 from typing import Any, Dict, Optional
 
 from flask import Blueprint, jsonify, request
 
 stock_bp = Blueprint("stock", __name__)
+_PRICE_CACHE_TTL_SECONDS = 300
+_HOT_STOCKS_CACHE_TTL_SECONDS = 300
+_price_cache: Dict[str, Dict[str, Any]] = {}
+_hot_stocks_cache: Dict[str, Dict[str, Any]] = {}
 
 DEFAULT_HOT_STOCKS = [
     {"code": "600519", "name": "贵州茅台"},
@@ -64,6 +69,25 @@ def _get_financial_adapter():
 
     adapter = get_adapter()
     return adapter if adapter and adapter.is_available() else None
+
+
+def _get_cached_value(
+    cache_store: Dict[str, Dict[str, Any]],
+    cache_key: str,
+    ttl_seconds: int,
+    loader,
+):
+    now = time.time()
+    cached = cache_store.get(cache_key)
+    if cached and now - cached.get("timestamp", 0) < ttl_seconds:
+        return cached.get("value")
+
+    value = loader()
+    cache_store[cache_key] = {
+        "timestamp": now,
+        "value": value,
+    }
+    return value
 
 
 def _get_latest_price_snapshot(stock_code: str) -> Dict[str, Any]:
@@ -244,9 +268,15 @@ def get_stock_price(ticker):
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     normalized_ticker = normalize_ticker(ticker)
+    cache_key = f"{normalized_ticker}:{start_date or ''}:{end_date or ''}"
 
     try:
-        result = _get_stock_adapter().get_stock_price(normalized_ticker, start_date, end_date)
+        result = _get_cached_value(
+            _price_cache,
+            cache_key,
+            _PRICE_CACHE_TTL_SECONDS,
+            lambda: _get_stock_adapter().get_stock_price(normalized_ticker, start_date, end_date),
+        )
         if not result.get("success"):
             return jsonify(result), 404
 
@@ -267,7 +297,13 @@ def get_stock_price(ticker):
 @stock_bp.route("/api/stock/hot", methods=["GET"])
 def get_hot_stocks():
     count = max(1, min(int(request.args.get("count", 12)), 30))
-    stocks = [_build_hot_stock_item(stock) for stock in DEFAULT_HOT_STOCKS[:count]]
+    cache_key = f"count:{count}"
+    stocks = _get_cached_value(
+        _hot_stocks_cache,
+        cache_key,
+        _HOT_STOCKS_CACHE_TTL_SECONDS,
+        lambda: [_build_hot_stock_item(stock) for stock in DEFAULT_HOT_STOCKS[:count]],
+    )
     return jsonify({"success": True, "stocks": stocks})
 
 

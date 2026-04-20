@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const FLASK_API_URL = process.env.FLASK_API_URL || 'http://localhost:5003'
+export const maxDuration = 30
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,11 @@ export async function GET(
     }
 
     const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
+      },
+    })
   } catch (error) {
     console.error('Stock price error:', error)
     return NextResponse.json(

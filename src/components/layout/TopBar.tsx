@@ -233,7 +233,7 @@ export function TopBar() {
   useEffect(() => {
     const fetchStocks = async () => {
       try {
-        const res = await fetch('/api/stock/hot?count=12')
+        const res = await fetch('/api/stock/hot?count=8')
         const data = await res.json()
         if (Array.isArray(data.stocks)) {
           setStocks(
