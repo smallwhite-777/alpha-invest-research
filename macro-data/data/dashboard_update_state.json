@@ -1,0 +1,14 @@
+{
+  "last_update": "2026-04-14T12:41:04.344574",
+  "last_data_date": "2026-04-14T12:40:59.824850",
+  "update_count": 1,
+  "fetcher_results": {
+    "fetch_fred_us_macro.py": true,
+    "fetch_us_balance_sheet.py": true
+  },
+  "dashboard_results": {
+    "dashboard_us_master.py": true,
+    "dashboard_us_debt.py": true,
+    "dashboard_us_liquidity.py": true
+  }
+}

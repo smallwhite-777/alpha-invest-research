@@ -40,7 +40,7 @@ MAX_RETURN_SNIPPETS = 5         # Max results to return
 FILE_READ_TIMEOUT = 5           # Timeout per file read
 
 # ============== LLM PROVIDERS ==============
-# Simplified to MiniMax models only with fallback options
+# MiniMax models with fallback options
 LLM_PROVIDERS = {
     "minimax": {
         "api_key": os.getenv("MINIMAX_API_KEY", ""),
@@ -62,8 +62,8 @@ LLM_PROVIDERS = {
     },
 }
 
-# Default to MiniMax, fallback to DeepSeek if not configured
-DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", os.getenv("DEFAULT_AI_PROVIDER", "minimax"))
+# Default to MiniMax
+DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", "minimax")
 
 # ============== INDUSTRY-SPECIFIC METRICS ==============
 # Comprehensive metrics library for different industries

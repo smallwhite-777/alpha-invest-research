@@ -1,295 +1,437 @@
 """
-定时任务模块
-使用APScheduler实现数据定时更新
+Task scheduler utilities.
+
+Provides APScheduler integration when available and a lightweight
+thread-based fallback so periodic jobs can still run in development.
 """
 
+from __future__ import annotations
+
+import logging
 import os
 import sys
+import threading
+import time
 from datetime import datetime
-from typing import Callable, List
-import logging
+from typing import Any, Callable, Dict, List, Optional
 
-# 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = logging.getLogger(__name__)
 
 
+def _parse_day_filter(day_of_week: Optional[str]) -> Optional[set[int]]:
+    if not day_of_week:
+        return None
+
+    normalized = str(day_of_week).strip().lower()
+    day_map = {
+        "mon": 0,
+        "tue": 1,
+        "wed": 2,
+        "thu": 3,
+        "fri": 4,
+        "sat": 5,
+        "sun": 6,
+    }
+
+    if normalized == "mon-fri":
+        return {0, 1, 2, 3, 4}
+    if normalized in day_map:
+        return {day_map[normalized]}
+
+    result: set[int] = set()
+    for part in normalized.split(","):
+        part = part.strip()
+        if part in day_map:
+            result.add(day_map[part])
+    return result or None
+
+
+def _coerce_interval_seconds(trigger_type: str, trigger_args: Dict[str, Any]) -> int:
+    if trigger_type == "interval":
+        if trigger_args.get("seconds"):
+            return max(int(trigger_args["seconds"]), 60)
+        if trigger_args.get("minutes"):
+            return max(int(trigger_args["minutes"]) * 60, 60)
+        if trigger_args.get("hours"):
+            return max(int(trigger_args["hours"]) * 3600, 60)
+        return 300
+
+    hour = trigger_args.get("hour")
+    day_of_week = trigger_args.get("day_of_week")
+
+    if hour == "*":
+        return 3600
+    if day_of_week:
+        days = _parse_day_filter(day_of_week)
+        if days and len(days) == 1:
+            return 7 * 24 * 3600
+        return 24 * 3600
+    return 24 * 3600
+
+
 class TaskScheduler:
-    """定时任务调度器"""
+    """Background task scheduler with APScheduler and thread fallback."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.scheduler = None
-        self.tasks: List[dict] = []
+        self.tasks: List[Dict[str, Any]] = []
+        self._use_fallback = False
+        self._fallback_thread: Optional[threading.Thread] = None
+        self._fallback_stop = threading.Event()
+        self._fallback_lock = threading.Lock()
 
-    def init_scheduler(self):
-        """初始化调度器"""
+    def init_scheduler(self) -> bool:
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
-            from apscheduler.triggers.cron import CronTrigger
 
             self.scheduler = BackgroundScheduler()
+            self._use_fallback = False
             logger.info("[Scheduler] APScheduler initialized successfully")
             return True
         except ImportError:
-            logger.warning("[Scheduler] APScheduler not installed, using simple timer fallback")
             self.scheduler = None
-            return False
-        except Exception as e:
-            logger.error(f"[Scheduler] Failed to initialize: {e}")
-            return False
-
-    def add_task(self, task_id: str, func: Callable, trigger_type: str = 'cron', **trigger_args):
-        """
-        添加定时任务
-
-        Args:
-            task_id: 任务唯一标识
-            func: 要执行的函数
-            trigger_type: 触发器类型 ('cron', 'interval')
-            **trigger_args: 触发器参数
-        """
-        if not self.scheduler:
-            logger.warning(f"[Scheduler] Cannot add task {task_id}: scheduler not initialized")
-            return False
-
-        try:
-            if trigger_type == 'cron':
-                from apscheduler.triggers.cron import CronTrigger
-                trigger = CronTrigger(**trigger_args)
-            elif trigger_type == 'interval':
-                from apscheduler.triggers.interval import IntervalTrigger
-                trigger = IntervalTrigger(**trigger_args)
-            else:
-                raise ValueError(f"Unknown trigger type: {trigger_type}")
-
-            self.scheduler.add_job(func, trigger, id=task_id, replace_existing=True)
-            self.tasks.append({
-                'id': task_id,
-                'func': func.__name__,
-                'trigger_type': trigger_type,
-                'trigger_args': trigger_args
-            })
-            logger.info(f"[Scheduler] Task added: {task_id}")
+            self._use_fallback = True
+            logger.warning("[Scheduler] APScheduler not installed, using thread fallback")
             return True
-        except Exception as e:
-            logger.error(f"[Scheduler] Failed to add task {task_id}: {e}")
+        except Exception as exc:
+            logger.error("[Scheduler] Failed to initialize: %s", exc)
+            self.scheduler = None
+            self._use_fallback = False
             return False
 
-    def start(self):
-        """启动调度器"""
-        if self.scheduler:
+    def add_task(
+        self,
+        task_id: str,
+        func: Callable,
+        trigger_type: str = "cron",
+        **trigger_args: Any,
+    ) -> bool:
+        try:
+            task_info: Dict[str, Any] = {
+                "id": task_id,
+                "func": func,
+                "func_name": getattr(func, "__name__", task_id),
+                "trigger_type": trigger_type,
+                "trigger_args": trigger_args,
+                "last_run": None,
+                "last_result": None,
+                "last_error": None,
+            }
+
+            if self.scheduler is not None:
+                if trigger_type == "cron":
+                    from apscheduler.triggers.cron import CronTrigger
+
+                    trigger = CronTrigger(**trigger_args)
+                elif trigger_type == "interval":
+                    from apscheduler.triggers.interval import IntervalTrigger
+
+                    trigger = IntervalTrigger(**trigger_args)
+                else:
+                    raise ValueError(f"Unknown trigger type: {trigger_type}")
+
+                self.scheduler.add_job(func, trigger, id=task_id, replace_existing=True)
+            elif self._use_fallback:
+                interval_seconds = _coerce_interval_seconds(trigger_type, trigger_args)
+                task_info["interval_seconds"] = interval_seconds
+                run_on_start = bool(trigger_args.pop("run_on_start", False))
+                task_info["run_on_start"] = run_on_start
+                task_info["day_filter"] = _parse_day_filter(trigger_args.get("day_of_week"))
+                task_info["next_run_at"] = time.time() if run_on_start else time.time() + interval_seconds
+            else:
+                logger.warning("[Scheduler] Cannot add task %s: scheduler not initialized", task_id)
+                return False
+
+            existing_index = next((i for i, task in enumerate(self.tasks) if task["id"] == task_id), None)
+            if existing_index is None:
+                self.tasks.append(task_info)
+            else:
+                self.tasks[existing_index] = task_info
+
+            logger.info("[Scheduler] Task added: %s", task_id)
+            return True
+        except Exception as exc:
+            logger.error("[Scheduler] Failed to add task %s: %s", task_id, exc)
+            return False
+
+    def _run_task(self, task: Dict[str, Any]) -> None:
+        try:
+            logger.info("[Scheduler] Running task: %s", task["id"])
+            result = task["func"]()
+            task["last_run"] = datetime.now().isoformat()
+            task["last_result"] = result
+            task["last_error"] = None
+        except Exception as exc:
+            task["last_run"] = datetime.now().isoformat()
+            task["last_error"] = str(exc)
+            logger.exception("[Scheduler] Task %s failed", task["id"])
+
+    def _should_run_today(self, task: Dict[str, Any]) -> bool:
+        day_filter = task.get("day_filter")
+        if not day_filter:
+            return True
+        return datetime.now().weekday() in day_filter
+
+    def _fallback_loop(self) -> None:
+        logger.info("[Scheduler] Fallback scheduler loop started")
+        while not self._fallback_stop.is_set():
+            now_ts = time.time()
+            with self._fallback_lock:
+                for task in self.tasks:
+                    if "interval_seconds" not in task:
+                        continue
+                    next_run_at = task.get("next_run_at", now_ts)
+                    if now_ts < next_run_at:
+                        continue
+                    if not self._should_run_today(task):
+                        task["next_run_at"] = now_ts + 3600
+                        continue
+
+                    self._run_task(task)
+                    task["next_run_at"] = now_ts + int(task["interval_seconds"])
+            self._fallback_stop.wait(30)
+        logger.info("[Scheduler] Fallback scheduler loop stopped")
+
+    def start(self) -> bool:
+        if self.scheduler is not None:
             try:
                 self.scheduler.start()
                 logger.info("[Scheduler] Scheduler started successfully")
                 return True
-            except Exception as e:
-                logger.error(f"[Scheduler] Failed to start: {e}")
+            except Exception as exc:
+                logger.error("[Scheduler] Failed to start: %s", exc)
                 return False
-        return False
 
-    def stop(self):
-        """停止调度器"""
-        if self.scheduler and self.scheduler.running:
+        if not self._use_fallback:
+            return False
+
+        if self._fallback_thread and self._fallback_thread.is_alive():
+            return True
+
+        self._fallback_stop.clear()
+        self._fallback_thread = threading.Thread(
+            target=self._fallback_loop,
+            name="task-scheduler-fallback",
+            daemon=True,
+        )
+        self._fallback_thread.start()
+        return True
+
+    def stop(self) -> None:
+        if self.scheduler is not None and self.scheduler.running:
             self.scheduler.shutdown()
             logger.info("[Scheduler] Scheduler stopped")
 
-    def get_tasks(self) -> List[dict]:
-        """获取所有已注册的任务"""
-        return self.tasks
+        if self._fallback_thread and self._fallback_thread.is_alive():
+            self._fallback_stop.set()
+            self._fallback_thread.join(timeout=5)
+
+    def get_tasks(self) -> List[Dict[str, Any]]:
+        tasks: List[Dict[str, Any]] = []
+        for task in self.tasks:
+            safe_task = {
+                "id": task["id"],
+                "func": task.get("func_name"),
+                "trigger_type": task.get("trigger_type"),
+                "trigger_args": task.get("trigger_args", {}),
+                "last_run": task.get("last_run"),
+                "last_error": task.get("last_error"),
+            }
+            if "interval_seconds" in task:
+                safe_task["interval_seconds"] = task["interval_seconds"]
+                next_run_at = task.get("next_run_at")
+                if next_run_at:
+                    safe_task["next_run_at"] = datetime.fromtimestamp(next_run_at).isoformat()
+            tasks.append(safe_task)
+        return tasks
 
     def is_running(self) -> bool:
-        """检查调度器是否运行中"""
-        return self.scheduler and self.scheduler.running
+        if self.scheduler is not None:
+            return bool(self.scheduler.running)
+        return bool(self._fallback_thread and self._fallback_thread.is_alive())
 
 
-# 全局调度器实例
 task_scheduler = TaskScheduler()
 
 
-# ==================== 定时任务定义 ====================
-
-def update_hot_stocks_data():
-    """
-    更新热门股票数据
-    每日早盘前执行
-    """
-    logger.info(f"[Task] Updating hot stocks data at {datetime.now()}")
+def update_hot_stocks_data() -> Dict[str, Any]:
+    logger.info("[Task] Updating hot stocks data at %s", datetime.now().isoformat())
     try:
         from scripts.preload_financial_data import FinancialDataPreloader
 
         preloader = FinancialDataPreloader()
         result = preloader.run()
-
-        logger.info(f"[Task] Hot stocks update completed: {len(result.get('success', []))} succeeded")
+        logger.info(
+            "[Task] Hot stocks update completed: %s succeeded",
+            len(result.get("success", [])),
+        )
         return result
-    except Exception as e:
-        logger.error(f"[Task] Hot stocks update failed: {e}")
-        return {'error': str(e)}
+    except Exception as exc:
+        logger.error("[Task] Hot stocks update failed: %s", exc)
+        return {"error": str(exc)}
 
 
-def update_stock_prices():
-    """
-    更新热门股票价格数据
-    每小时执行
-    """
-    logger.info(f"[Task] Updating stock prices at {datetime.now()}")
+def update_stock_prices() -> Dict[str, Any]:
+    logger.info("[Task] Updating stock prices at %s", datetime.now().isoformat())
     try:
         import akshare as ak
-        from skills.alphaear_stock.scripts.database_manager import StockDatabaseManager
 
-        db_manager = StockDatabaseManager()
-
-        # 获取热门股票列表
         hot_stocks = [
-            '600519', '000858', '000568', '002304', '600809',  # 白酒
-            '601398', '601288', '601939', '601988', '600036',  # 银行
-            '300750', '002594', '600900',  # 新能源
+            "600519",
+            "000858",
+            "000568",
+            "002304",
+            "600809",
+            "601398",
+            "601288",
+            "601939",
+            "601988",
+            "600036",
+            "300750",
+            "002594",
+            "600900",
         ]
 
+        spot_df = ak.stock_zh_a_spot_em()
         updated = 0
         for code in hot_stocks:
-            try:
-                # 获取最新价格
-                df = ak.stock_zh_a_spot_em()
-                stock_info = df[df['代码'] == code]
-                if not stock_info.empty:
-                    latest = stock_info.iloc[0]
-                    # 这里可以更新到数据库
-                    updated += 1
-            except Exception as e:
-                logger.warning(f"[Task] Failed to update {code}: {e}")
+            stock_info = spot_df[spot_df["代码"] == code]
+            if not stock_info.empty:
+                updated += 1
 
-        logger.info(f"[Task] Stock prices update completed: {updated} stocks updated")
-        return {'updated': updated}
-    except Exception as e:
-        logger.error(f"[Task] Stock prices update failed: {e}")
-        return {'error': str(e)}
+        logger.info("[Task] Stock prices update completed: %s stocks checked", updated)
+        return {"updated": updated}
+    except Exception as exc:
+        logger.error("[Task] Stock prices update failed: %s", exc)
+        return {"error": str(exc)}
 
 
-def update_macro_indicators():
-    """
-    更新宏观经济指标
-    每日执行
-    """
-    logger.info(f"[Task] Updating macro indicators at {datetime.now()}")
+def update_macro_indicators() -> Dict[str, Any]:
+    logger.info("[Task] Updating macro indicators at %s", datetime.now().isoformat())
     try:
         import akshare as ak
 
-        # 这里可以将宏观指标缓存到数据库
-        # 目前仅记录日志
-        indicators_updated = []
+        indicators_updated: List[str] = []
 
-        # M2
         try:
-            m2_df = ak.macro_china_m2_yoy()
-            if m2_df is not None and not m2_df.empty:
-                indicators_updated.append('M2_YOY')
-        except:
+            if ak.macro_china_m2_yoy() is not None:
+                indicators_updated.append("M2_YOY")
+        except Exception:
             pass
 
-        # CPI
         try:
-            cpi_df = ak.macro_china_cpi_yoy()
-            if cpi_df is not None and not cpi_df.empty:
-                indicators_updated.append('CPI_YOY')
-        except:
+            if ak.macro_china_cpi_yoy() is not None:
+                indicators_updated.append("CPI_YOY")
+        except Exception:
             pass
 
-        # PMI
         try:
-            pmi_df = ak.macro_china_pmi()
-            if pmi_df is not None and not pmi_df.empty:
-                indicators_updated.append('PMI')
-        except:
+            if ak.macro_china_pmi() is not None:
+                indicators_updated.append("PMI")
+        except Exception:
             pass
 
-        logger.info(f"[Task] Macro indicators update completed: {indicators_updated}")
-        return {'updated': indicators_updated}
-    except Exception as e:
-        logger.error(f"[Task] Macro indicators update failed: {e}")
-        return {'error': str(e)}
+        logger.info("[Task] Macro indicators update completed: %s", indicators_updated)
+        return {"updated": indicators_updated}
+    except Exception as exc:
+        logger.error("[Task] Macro indicators update failed: %s", exc)
+        return {"error": str(exc)}
 
 
-def cleanup_old_cache():
-    """
-    清理过期缓存
-    每周执行
-    """
-    logger.info(f"[Task] Cleaning up old cache at {datetime.now()}")
+def refresh_hot_news() -> Dict[str, Any]:
+    logger.info("[Task] Refreshing hot news at %s", datetime.now().isoformat())
+    try:
+        from skills import get_news_adapter
+
+        adapter = get_news_adapter()
+        sources = ["cls", "wallstreetcn", "weibo"]
+        fetched: Dict[str, int] = {}
+
+        for source in sources:
+            items = adapter.get_hot_news(source, count=20)
+            fetched[source] = len(items) if isinstance(items, list) else 0
+            time.sleep(0.2)
+
+        logger.info("[Task] Hot news refresh completed: %s", fetched)
+        return {"sources": fetched}
+    except Exception as exc:
+        logger.error("[Task] Hot news refresh failed: %s", exc)
+        return {"error": str(exc)}
+
+
+def cleanup_old_cache() -> Dict[str, Any]:
+    logger.info("[Task] Cleaning old cache at %s", datetime.now().isoformat())
     try:
         from cache.response_cache import get_cache
 
         cache = get_cache()
         stats = cache.get_stats()
-
-        # 如果缓存条目过多，清理部分
-        if stats.get('total_entries', 0) > 800:
-            # 清理低质量条目
+        if stats.get("total_entries", 0) > 800:
             cleared = cache.clear_low_quality()
-            logger.info(f"[Task] Cache cleanup: cleared {cleared} entries")
-            return {'cleared': cleared}
+            logger.info("[Task] Cache cleanup cleared %s entries", cleared)
+            return {"cleared": cleared}
 
-        logger.info("[Task] Cache cleanup: no cleanup needed")
-        return {'cleared': 0}
-    except Exception as e:
-        logger.error(f"[Task] Cache cleanup failed: {e}")
-        return {'error': str(e)}
+        logger.info("[Task] Cache cleanup skipped")
+        return {"cleared": 0}
+    except Exception as exc:
+        logger.error("[Task] Cache cleanup failed: %s", exc)
+        return {"error": str(exc)}
 
 
-def setup_default_tasks():
-    """设置默认定时任务"""
-
-    # 每日早盘前更新热门股票数据 (周一到周五 9:00)
+def setup_default_tasks() -> None:
     task_scheduler.add_task(
-        'update_hot_stocks',
+        "refresh_hot_news",
+        refresh_hot_news,
+        trigger_type="interval",
+        minutes=5,
+        run_on_start=True,
+    )
+
+    task_scheduler.add_task(
+        "update_hot_stocks",
         update_hot_stocks_data,
-        trigger_type='cron',
-        day_of_week='mon-fri',
+        trigger_type="cron",
+        day_of_week="mon-fri",
         hour=9,
-        minute=0
+        minute=0,
     )
 
-    # 每小时更新股票价格
     task_scheduler.add_task(
-        'update_stock_prices',
+        "update_stock_prices",
         update_stock_prices,
-        trigger_type='cron',
-        hour='*',
-        minute=30
+        trigger_type="cron",
+        hour="*",
+        minute=30,
     )
 
-    # 每日更新宏观指标 (早上 8:00)
     task_scheduler.add_task(
-        'update_macro_indicators',
+        "update_macro_indicators",
         update_macro_indicators,
-        trigger_type='cron',
+        trigger_type="cron",
         hour=8,
-        minute=0
+        minute=0,
     )
 
-    # 每周清理缓存 (周日凌晨 2:00)
     task_scheduler.add_task(
-        'cleanup_cache',
+        "cleanup_cache",
         cleanup_old_cache,
-        trigger_type='cron',
-        day_of_week='sun',
+        trigger_type="cron",
+        day_of_week="sun",
         hour=2,
-        minute=0
+        minute=0,
     )
 
-    logger.info(f"[Scheduler] Default tasks setup completed: {len(task_scheduler.get_tasks())} tasks")
+    logger.info("[Scheduler] Default tasks setup completed: %s tasks", len(task_scheduler.get_tasks()))
 
 
-# 便捷函数
-def start_scheduler():
-    """启动定时任务调度器"""
+def start_scheduler() -> bool:
     if task_scheduler.init_scheduler():
         setup_default_tasks()
         return task_scheduler.start()
     return False
 
 
-def stop_scheduler():
-    """停止定时任务调度器"""
+def stop_scheduler() -> None:
     task_scheduler.stop()

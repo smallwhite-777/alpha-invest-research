@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.open1nvest.com"
+        }
+      ],
+      "destination": "https://open1nvest.com/$1",
+      "permanent": true
+    }
+  ]
+}
