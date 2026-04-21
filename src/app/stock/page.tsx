@@ -32,7 +32,7 @@ export default function StockPage() {
 
   const fetchHotStocks = async () => {
     try {
-      const res = await fetch('/api/stock/hot?count=12')
+      const res = await fetch('/api/stock/hot?count=20')
       const data = await res.json()
       if (data.stocks) {
         setHotStocks(data.stocks)

@@ -1,26 +1,18 @@
 import type { Metadata } from "next"
+import { Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TopBar } from "@/components/layout/TopBar"
-import { Sidebar } from "@/components/layout/Sidebar"
-import { getSiteOrigin } from "@/lib/site"
 import "./globals.css"
 
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+})
+
 export const metadata: Metadata = {
-  title: "OPENINVEST - Investment Intelligence",
-  description: "OpenInvest investment intelligence platform",
-  metadataBase: getSiteOrigin(),
-  alternates: {
-    canonical: '/',
-  },
-  openGraph: {
-    title: "OPENINVEST - Investment Intelligence",
-    description: "OpenInvest investment intelligence platform",
-    url: '/',
-    siteName: "OPENINVEST",
-    locale: "zh_CN",
-    type: "website",
-  },
+  title: "open1nvest",
+  description: "投研信息聚合平台",
 }
 
 export default function RootLayout({
@@ -30,22 +22,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body
+        className={`${geistMono.variable} font-sans antialiased`}
+      >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >
           <TooltipProvider>
             <div className="flex h-screen flex-col overflow-hidden">
               <TopBar />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-hidden">
-                  {children}
-                </main>
-              </div>
+              <main className="flex-1 overflow-hidden">
+                {children}
+              </main>
             </div>
           </TooltipProvider>
         </ThemeProvider>

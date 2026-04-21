@@ -1,417 +1,238 @@
 'use client'
 
-import { useMemo } from 'react'
-import Link from 'next/link'
-import useSWR from 'swr'
+import { useState, useEffect } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { useTheme } from 'next-themes'
+import Link from 'next/link'
+import useSWR from 'swr'
 import { cn } from '@/lib/utils'
-import type { MacroIndicator } from '@/types/macro'
 
-interface MacroSeriesGroup {
-  indicatorCode: string
-  data: Array<{ date: string; value: number }>
+const fetcher = async (url: string) => {
+  const PYTHON_BACKEND = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:5001'
+  const res = await fetch(`${PYTHON_BACKEND}${url}`)
+  if (!res.ok) throw new Error('Network error')
+  return res.json()
 }
 
-interface Sector {
-  name: string
-  ticker: string
-  change: number
-}
-
-interface Insight {
-  id: string
-  title: string
-  category: string
-  importance: number
-  createdAt: string
-  sector?: string
-  tags?: { name?: string; tag?: { name?: string } }[]
-}
-
-const HOME_MACRO_CODES = [
-  'CN_M2_YOY',
-  'PMI_CHN',
-  'CN_CPI_NT_YOY',
-  'CN_PPI_YOY',
-  'US_DFF_M',
-  'US_DGS10_M',
-]
-
-const HOME_CHART_PAIRS = [
-  { codeX: 'CN_M2_YOY', codeY: 'US_M2SL_M', title: '中美流动性' },
-  { codeX: 'PMI_CHN', codeY: 'US_DGS10_M', title: '景气度 vs 美债利率' },
-  { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '工业价格 vs 原油' },
-]
-
-const CLEAN_HOME_CHART_PAIRS = [
-  { codeX: 'CN_M2_YOY', codeY: 'US_M2SL_M', title: '中美流动性对比' },
-  { codeX: 'PMI_CHN', codeY: 'US_DGS10_M', title: '景气度 vs 美债利率' },
-  { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '工业价格 vs 原油' },
-]
-
-const MARKET_API = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:5003'
-
-const jsonFetcher = async <T,>(url: string): Promise<T> => {
+const prismaFetcher = async (url: string) => {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) throw new Error('Network error')
   return res.json()
 }
 
-const pythonFetcher = async <T,>(url: string): Promise<T> => {
-  const res = await fetch(`${MARKET_API}${url}`)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-function normalizeValues(values: number[]) {
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-  return values.map((value) => ((value - min) / range) * 100)
-}
-
-function pearsonCorrelation(x: number[], y: number[]) {
-  const n = Math.min(x.length, y.length)
-  if (n < 2) return 0
-  const xs = x.slice(-n)
-  const ys = y.slice(-n)
-  const sumX = xs.reduce((acc, value) => acc + value, 0)
-  const sumY = ys.reduce((acc, value) => acc + value, 0)
-  const sumXY = xs.reduce((acc, value, index) => acc + value * ys[index], 0)
-  const sumX2 = xs.reduce((acc, value) => acc + value * value, 0)
-  const sumY2 = ys.reduce((acc, value) => acc + value * value, 0)
-  const numerator = n * sumXY - sumX * sumY
-  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
-  return denominator === 0 ? 0 : numerator / denominator
-}
-
-function latestChange(points: Array<{ date: string; value: number }>) {
-  const latest = points.at(-1)?.value
-  const previous = points.at(-2)?.value
-  if (latest === undefined || previous === undefined || previous === 0) {
-    return 0
-  }
-  return ((latest - previous) / Math.abs(previous)) * 100
-}
-
-function getTagName(tag: NonNullable<Insight['tags']>[number]) {
-  return tag?.name || tag?.tag?.name || ''
-}
+interface MacroIndicator { code: string; name: string; value: number; change: number; date?: string }
+interface Sector { name: string; ticker: string; change: number; leading_stock?: string; leading_change?: number }
+interface Insight { id: string; title: string; content: string; category: string; importance: number; createdAt: string; tags?: { name: string }[]; sector?: string }
+interface MacroResponse { success: boolean; indicators: MacroIndicator[]; last_updated: string }
+interface SectorResponse { success: boolean; sectors: Sector[]; last_updated: string }
+interface InsightsResponse { items: Insight[]; total: number }
 
 export default function Dashboard() {
   const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const isDark = resolvedTheme === 'dark'
 
-  const { data: indicators = [] } = useSWR<MacroIndicator[]>('/api/macro/indicators', jsonFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000,
-  })
+  const { data: macroData, isLoading: macroLoading } = useSWR<MacroResponse>('/api/macro/indicators', fetcher, { revalidateOnFocus: false, dedupingInterval: 600000 })
+  const { data: sectorData, isLoading: sectorLoading } = useSWR<SectorResponse>('/api/market/sectors', fetcher, { revalidateOnFocus: false, dedupingInterval: 300000 })
+  const { data: insightsData, isLoading: insightsLoading } = useSWR<InsightsResponse>('/api/intelligence?limit=6', prismaFetcher, { revalidateOnFocus: false, dedupingInterval: 300000 })
 
-  const indicatorCodes = useMemo(
-    () =>
-      Array.from(new Set([...HOME_MACRO_CODES, ...CLEAN_HOME_CHART_PAIRS.flatMap((pair) => [pair.codeX, pair.codeY])])).join(','),
-    []
-  )
+  if (!mounted) return null
 
-  const { data: macroGroups = [] } = useSWR<MacroSeriesGroup[]>(
-    `/api/macro/data?codes=${indicatorCodes}&limit=72`,
-    jsonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
-  )
+  const fallbackMacro: MacroIndicator[] = [
+    { code: 'M2_YOY', name: 'M2 同比', value: 8.1, change: 0.2 },
+    { code: 'CPI_YOY', name: 'CPI 同比', value: 0.7, change: -0.1 },
+    { code: 'PMI_MFG', name: '制造业 PMI', value: 50.8, change: 0.5 },
+    { code: 'PMI_SVC', name: '非制造业 PMI', value: 52.3, change: 0.3 },
+    { code: '10Y_YIELD', name: '10年期国债', value: 2.35, change: -0.02 },
+    { code: 'USD_CNY', name: '美元/人民币', value: 7.24, change: 0.01 },
+  ]
+  const fallbackSectors: Sector[] = [
+    { name: '半导体', ticker: 'BK0890', change: 2.45 },
+    { name: 'AI算力', ticker: 'BK0801', change: 3.10 },
+    { name: '新能源', ticker: 'BK0493', change: -0.50 },
+    { name: '白酒', ticker: 'BK0896', change: 1.25 },
+  ]
 
-  const { data: sectorData } = useSWR<{ success: boolean; sectors: Sector[] }>(
-    '/api/market/sectors',
-    pythonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
-  )
-
-  const { data: insightsData } = useSWR<{ items: Insight[] }>(
-    '/api/intelligence?limit=6',
-    jsonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
-  )
-
-  const groupMap = useMemo(
-    () => new Map(macroGroups.map((group) => [group.indicatorCode, group.data])),
-    [macroGroups]
-  )
-
-  const topIndicators = HOME_MACRO_CODES
-    .map((code) => {
-      const indicator = indicators.find((item) => item.code === code)
-      const points = groupMap.get(code) || []
-      const latest = points.at(-1)
-      return indicator && latest
-        ? { indicator, latest, change: latestChange(points) }
-        : null
-    })
-    .filter(Boolean) as Array<{ indicator: MacroIndicator; latest: { date: string; value: number }; change: number }>
-
-  const sectors = sectorData?.success ? sectorData.sectors : []
+  const indicators = macroData?.success ? macroData.indicators : fallbackMacro
+  const sectors = sectorData?.success ? sectorData.sectors : fallbackSectors
   const insights = insightsData?.items || []
 
+  const generateMockData = (base: number, volatility: number) =>
+    Array.from({ length: 12 }, (_, i) => ({ date: `2025-${String(i + 1).padStart(2, '0')}`, value: base + (Math.random() - 0.5) * volatility * 2 }))
+
+  const chartLabels = [
+    { labelX: 'M2 增速', labelY: '沪深300', corrLabel: '+0.65' },
+    { labelX: '费城半导体', labelY: 'AI 算力营收', corrLabel: '+0.88' },
+    { labelX: 'LME 铜价', labelY: '制造业 PMI', corrLabel: '+0.52' },
+  ]
+
+  const fgColor = isDark ? '#8a8d82' : '#74796d'
+  const tooltipBg = isDark ? 'rgba(28,28,26,0.96)' : 'rgba(255,255,255,0.96)'
+  const tooltipFg = isDark ? '#e4e2dd' : '#1b1c19'
+  const lineA = isDark ? '#6fa888' : '#001629'
+  const lineB = isDark ? '#c65d65' : '#58040f'
+  const areaA = isDark ? 'rgba(111,168,136,0.08)' : 'rgba(0,22,41,0.06)'
+  const areaB = isDark ? 'rgba(198,93,101,0.08)' : 'rgba(88,4,15,0.06)'
+
   return (
-    <div className="h-full p-4 flex flex-col overflow-hidden gap-4">
-      <section className="rounded-2xl border border-border bg-card p-5 card-elevated shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-              Macro Indicators
-            </span>
-            <span className="text-xs text-up flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-up rounded-full animate-pulse" />
-              Local Data
-            </span>
+    <div className="h-full overflow-hidden">
+      <div className="h-full grid grid-rows-2 grid-cols-2 gap-px bg-surface-high">
+
+        {/* ========= 左上：宏观指标 ========= */}
+        <section className="bg-surface overflow-y-auto p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="font-editorial text-base text-foreground">宏观指标</h2>
+              <span className="text-xs text-up flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-up animate-pulse" />
+                实时
+              </span>
+              {macroLoading && <span className="text-xs text-muted-foreground">加载中...</span>}
+            </div>
+            <Link href="/macro" className="text-xs text-muted-foreground hover:text-foreground transition">
+              查看全部 →
+            </Link>
           </div>
-          <Link href="/macro" className="text-sm text-muted-foreground hover:text-foreground transition">
-            全部 →
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-          {topIndicators.map(({ indicator, latest, change }) => (
-            <div key={indicator.code} className="p-4 rounded-xl border border-border hover:bg-accent/50 transition-all duration-200">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-medium truncate">
-                {indicator.code}
+          <div className="grid grid-cols-3 gap-px bg-surface-high">
+            {indicators.map((indicator, idx) => (
+              <div key={idx} className="bg-surface p-4 hover:bg-surface-low transition-colors cursor-pointer">
+                <div className="text-xs text-muted-foreground mb-2 font-medium">{indicator.name}</div>
+                <div className="text-xl font-semibold tabular-nums tracking-tight">{indicator.value.toFixed(2)}</div>
+                <div className={cn('text-sm font-medium tabular-nums mt-1', indicator.change >= 0 ? 'text-up' : 'text-down')}>
+                  {indicator.change >= 0 ? '↑' : '↓'} {Math.abs(indicator.change).toFixed(2)}
+                </div>
               </div>
-              <div className="text-sm text-foreground/90 truncate mb-2">{indicator.name}</div>
-              <div className="text-lg font-semibold tabular-nums tracking-tight">
-                {latest.value.toFixed(2)}
+            ))}
+          </div>
+        </section>
+
+        {/* ========= 右上：情报动态 ========= */}
+        <section className="bg-surface overflow-y-auto p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="font-editorial text-base text-foreground">情报动态</h2>
+              <span className="text-xs px-1.5 py-0.5 bg-surface-high text-muted-foreground tabular-nums">{insights.length}</span>
+              {insightsLoading && <span className="text-xs text-muted-foreground">加载中...</span>}
+            </div>
+            <Link href="/intelligence" className="text-xs text-muted-foreground hover:text-foreground transition">
+              全部 →
+            </Link>
+          </div>
+          <div className="space-y-0">
+            {insights.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <p className="text-sm">暂无情报数据</p>
+                <Link href="/intelligence/create" className="text-xs text-secondary hover:underline mt-2 block">创建新情报</Link>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">{indicator.unit}</div>
-              <div className={cn('text-sm font-medium tabular-nums mt-1', change >= 0 ? 'text-up' : 'text-down')}>
-                {change >= 0 ? '+' : ''}
-                {change.toFixed(2)}%
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ) : (
+              insights.map((item, idx) => {
+                const impColors: Record<number, string> = { 5: 'bg-down', 4: 'bg-warning', 3: 'bg-chart-3', 2: 'bg-chart-2', 1: 'bg-muted-foreground' }
+                const dotColor = impColors[item.importance || 1] || 'bg-muted-foreground'
+                const catLabel = item.category.replace(/_/g, ' ')
+                const date = new Date(item.createdAt)
+                const days = Math.floor((Date.now() - date.getTime()) / 86400000)
+                const dateStr = days === 0 ? '今天' : days === 1 ? '昨天' : `${date.getMonth() + 1}月${date.getDate()}日`
 
-      <div className="grid grid-cols-2 gap-4 shrink-0">
-        <QuickLink
-          href="/news"
-          title="实时新闻"
-          description="实时热点与市场快讯"
-          iconColor="text-blue-500"
-          bgColor="bg-blue-500/10"
-          path="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-        />
-        <QuickLink
-          href="/stock"
-          title="个股看板"
-          description="股票价格、估值与财务分析"
-          iconColor="text-green-500"
-          bgColor="bg-green-500/10"
-          path="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-        />
-      </div>
+                return (
+                  <Link key={item.id} href={`/intelligence/${item.id}`}
+                    className={cn('group block px-4 py-3 hover:bg-surface-high transition-colors', idx % 2 === 1 && 'bg-surface-low')}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={cn('w-1.5 h-1.5 shrink-0', dotColor)} />
+                      <span className="text-xs text-muted-foreground font-medium">{catLabel}</span>
+                      <span className="text-xs text-muted-foreground/50 ml-auto">{dateStr}</span>
+                    </div>
+                    <h3 className="text-sm font-medium leading-snug line-clamp-1 group-hover:opacity-80 transition">{item.title}</h3>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+        </section>
 
-      <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-        <div className="col-span-12 lg:col-span-9 flex flex-col gap-4 min-h-0">
-          <section className="rounded-2xl border border-border bg-card p-5 card-elevated">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                Time Series Analysis & Correlation
-              </span>
-              <Link href="/macro" className="text-sm text-muted-foreground hover:text-foreground transition">
-                宏观看板 →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              {CLEAN_HOME_CHART_PAIRS.map((pair) => (
-                <HomeChartPanel
-                  key={`${pair.codeX}-${pair.codeY}`}
-                  pair={pair}
-                  indicators={indicators}
-                  groupMap={groupMap}
-                  isDark={isDark}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-border bg-card p-5 card-elevated">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                Sector Performance
-              </span>
-              <Link href="/stock" className="text-sm text-muted-foreground hover:text-foreground transition">
-                个股看板 →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {sectors.slice(0, 8).map((sector) => (
-                <div key={sector.ticker} className="rounded-xl border border-border p-4 hover:bg-accent/40 transition-colors">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-foreground">{sector.name}</span>
-                    <span className={cn('text-sm font-semibold', sector.change >= 0 ? 'text-up' : 'text-down')}>
-                      {sector.change >= 0 ? '+' : ''}
-                      {sector.change.toFixed(2)}%
+        {/* ========= 左下：时序相关性分析 ========= */}
+        <section className="bg-surface overflow-y-auto p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-editorial text-base text-foreground">时序相关性</h2>
+            <Link href="/macro" className="text-xs text-muted-foreground hover:text-foreground transition">
+              高级分析 →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {chartLabels.map((label, idx) => {
+              const dataX = generateMockData(100, 20)
+              const dataY = generateMockData(100, 15)
+              const dates = dataX.map(d => d.date)
+              const option = {
+                grid: { left: 4, right: 4, top: 8, bottom: 20 },
+                tooltip: {
+                  trigger: 'axis' as const, backgroundColor: tooltipBg, borderColor: 'transparent', borderWidth: 0,
+                  padding: 10, textStyle: { fontSize: 10, color: tooltipFg }, extraCssText: 'box-shadow: 0 0 40px rgba(27,28,25,0.06);',
+                },
+                xAxis: {
+                  type: 'category' as const, data: dates, axisLine: { show: false }, axisTick: { show: false },
+                  axisLabel: { color: fgColor, fontSize: 9, interval: Math.max(Math.floor(dates.length / 3) - 1, 0) }, splitLine: { show: false },
+                },
+                yAxis: { type: 'value' as const, show: false, min: 70, max: 130 },
+                series: [
+                  { name: label.labelX, type: 'line' as const, data: dataX.map(d => d.value), smooth: false, symbol: 'none', lineStyle: { color: lineA, width: 1.5 }, areaStyle: { color: areaA } },
+                  { name: label.labelY, type: 'line' as const, data: dataY.map(d => d.value), smooth: false, symbol: 'none', lineStyle: { color: lineB, width: 1.5 }, areaStyle: { color: areaB } },
+                ],
+              }
+              return (
+                <div key={idx} className="bg-surface-low p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col gap-0.5 min-w-0 text-xs">
+                      <div className="flex items-center gap-1"><span className="w-2 h-0.5 shrink-0" style={{ background: lineA }} /><span className="truncate">{label.labelX}</span></div>
+                      <div className="flex items-center gap-1"><span className="w-2 h-0.5 shrink-0" style={{ background: lineB }} /><span className="truncate">{label.labelY}</span></div>
+                    </div>
+                    <span className={cn('text-sm font-semibold tabular-nums shrink-0', label.corrLabel.startsWith('+') ? 'text-up' : 'text-down')}>
+                      r={label.corrLabel}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{sector.ticker}</div>
+                  <div style={{ height: 130 }}>
+                    <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+                  </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        </div>
+              )
+            })}
+          </div>
+        </section>
 
-        <aside className="col-span-12 lg:col-span-3 min-h-0">
-          <section className="rounded-2xl border border-border bg-card p-5 card-elevated h-full overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                Intelligence Feed
-              </span>
-              <Link href="/intelligence" className="text-sm text-muted-foreground hover:text-foreground transition">
-                更多 →
-              </Link>
+        {/* ========= 右下：板块表现 ========= */}
+        <section className="bg-surface overflow-y-auto p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="font-editorial text-base text-foreground">板块表现</h2>
+              {sectorLoading && <span className="text-xs text-muted-foreground">加载中...</span>}
             </div>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {insights.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/intelligence/${item.id}`}
-                  className="block rounded-xl border border-border p-3 hover:bg-accent/40 transition-colors"
-                >
-                  <div className="text-sm font-medium text-foreground line-clamp-2">{item.title}</div>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(item.tags || []).slice(0, 2).map((tag, index) => {
-                      const name = getTagName(tag)
-                      return name ? (
-                        <span key={`${item.id}-${index}`} className="rounded bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                          {name}
-                        </span>
-                      ) : null
-                    })}
+            <Link href="/stock" className="text-xs text-muted-foreground hover:text-foreground transition">
+              查看全部 →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-px bg-surface-high">
+            {sectors.map((sector, idx) => {
+              const isUp = sector.change > 0
+              return (
+                <div key={sector.ticker} className="bg-surface p-4 hover:bg-surface-low transition-colors cursor-pointer">
+                  <div className="text-sm font-medium mb-1">{sector.name}</div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs text-muted-foreground">{sector.ticker}</span>
+                    <span className={cn('text-lg font-semibold tabular-nums', isUp ? 'text-up' : 'text-down')}>
+                      {isUp ? '+' : ''}{sector.change.toFixed(2)}%
+                    </span>
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString('zh-CN')}
+                  <div className="w-full bg-surface-high h-0.5 mt-3">
+                    <div className={cn('h-0.5 transition-all', isUp ? 'bg-up' : 'bg-down')} style={{ width: `${Math.min(Math.abs(sector.change) * 20, 100)}%` }} />
                   </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </aside>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
       </div>
     </div>
-  )
-}
-
-function HomeChartPanel({
-  pair,
-  indicators,
-  groupMap,
-  isDark,
-}: {
-  pair: { codeX: string; codeY: string; title: string }
-  indicators: MacroIndicator[]
-  groupMap: Map<string, Array<{ date: string; value: number }>>
-  isDark: boolean
-}) {
-  const indicatorX = indicators.find((item) => item.code === pair.codeX)
-  const indicatorY = indicators.find((item) => item.code === pair.codeY)
-  const seriesX = (groupMap.get(pair.codeX) || []).slice(-36)
-  const seriesY = (groupMap.get(pair.codeY) || []).slice(-36)
-
-  const length = Math.min(seriesX.length, seriesY.length)
-  const xValues = seriesX.slice(-length).map((item) => item.value)
-  const yValues = seriesY.slice(-length).map((item) => item.value)
-  const dates = seriesX.slice(-length).map((item) => item.date.slice(0, 7))
-  const correlation = length >= 3 ? pearsonCorrelation(xValues, yValues) : 0
-
-  const option = {
-    grid: { left: 8, right: 8, top: 10, bottom: 24 },
-    tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: isDark ? 'rgba(18,18,20,0.94)' : 'rgba(255,255,255,0.94)',
-      borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
-      borderWidth: 1,
-      padding: 10,
-      textStyle: { fontSize: 12, color: isDark ? '#f5f5f7' : '#1c1c1e' },
-    },
-    xAxis: {
-      type: 'category' as const,
-      data: dates,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: isDark ? '#636366' : '#8e8e93', fontSize: 10 },
-    },
-    yAxis: { type: 'value' as const, show: false },
-    series: [
-      {
-        name: indicatorX?.name || pair.codeX,
-        type: 'line' as const,
-        data: normalizeValues(xValues),
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { color: '#3b82f6', width: 2 },
-      },
-      {
-        name: indicatorY?.name || pair.codeY,
-        type: 'line' as const,
-        data: normalizeValues(yValues),
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { color: '#ef4444', width: 2 },
-      },
-    ],
-  }
-
-  return (
-    <div className="flex flex-col border border-border rounded-xl p-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground truncate">{pair.title}</div>
-          <div className="text-xs text-muted-foreground truncate">
-            {(indicatorX?.name || pair.codeX)} vs {(indicatorY?.name || pair.codeY)}
-          </div>
-        </div>
-        <div className={cn('text-sm font-semibold tabular-nums ml-2', correlation >= 0 ? 'text-up' : 'text-down')}>
-          r={correlation >= 0 ? '+' : ''}
-          {correlation.toFixed(2)}
-        </div>
-      </div>
-      <div style={{ height: 180 }}>
-        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
-      </div>
-    </div>
-  )
-}
-
-function QuickLink({
-  href,
-  title,
-  description,
-  iconColor,
-  bgColor,
-  path,
-}: {
-  href: string
-  title: string
-  description: string
-  iconColor: string
-  bgColor: string
-  path: string
-}) {
-  return (
-    <Link href={href} className="group">
-      <div className="rounded-2xl border border-border bg-card p-5 card-elevated hover:bg-accent/50 transition-all duration-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl ${bgColor} flex items-center justify-center`}>
-              <svg className={`w-5 h-5 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={path} />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground group-hover:text-link transition-colors">{title}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-            </div>
-          </div>
-          <span className="text-muted-foreground group-hover:text-link transition-colors">→</span>
-        </div>
-      </div>
-    </Link>
   )
 }
