@@ -32,7 +32,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_cpi_yoy',
     code: 'CN_CPI_NT_YOY',
-    name: '中国CPI同比',
+    name: '中国 CPI 同比',
     category: 'ECONOMIC',
     unit: '%',
     frequency: 'monthly',
@@ -42,7 +42,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_ppi_yoy',
     code: 'CN_PPI_YOY',
-    name: '中国PPI同比',
+    name: '中国 PPI 同比',
     category: 'ECONOMIC',
     unit: '%',
     frequency: 'monthly',
@@ -52,7 +52,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_m2_yoy',
     code: 'CN_M2_YOY',
-    name: '中国M2同比',
+    name: '中国 M2 同比',
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
@@ -62,7 +62,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_m1_yoy',
     code: 'CN_M1_YOY',
-    name: '中国M1同比',
+    name: '中国 M1 同比',
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
@@ -72,7 +72,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_pmi',
     code: 'PMI_CHN',
-    name: '中国制造业PMI',
+    name: '中国制造业 PMI',
     category: 'ECONOMIC',
     unit: '点',
     frequency: 'monthly',
@@ -82,7 +82,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_gdp_yoy',
     code: 'GDP_CHN_YOY',
-    name: '中国GDP同比',
+    name: '中国 GDP 同比',
     category: 'ECONOMIC',
     unit: '%',
     frequency: 'quarterly',
@@ -112,7 +112,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_repo7d',
     code: 'REPO7D_CHN',
-    name: '中国7天回购利率',
+    name: '中国 7 天回购利率',
     category: 'MONETARY',
     unit: '%',
     frequency: 'daily',
@@ -122,7 +122,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'cn_10y',
     code: 'TREASURY10Y_CHN',
-    name: '中国10年国债收益率',
+    name: '中国 10 年国债收益率',
     category: 'MONETARY',
     unit: '%',
     frequency: 'daily',
@@ -142,7 +142,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'us_10y',
     code: 'US_DGS10_M',
-    name: '美国10年国债收益率',
+    name: '美国 10 年国债收益率',
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
@@ -152,7 +152,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'us_2y',
     code: 'US_DGS2_M',
-    name: '美国2年国债收益率',
+    name: '美国 2 年国债收益率',
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
@@ -162,7 +162,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'us_m2',
     code: 'US_M2SL_M',
-    name: '美国M2',
+    name: '美国 M2',
     category: 'MONETARY',
     unit: '十亿美元',
     frequency: 'monthly',
@@ -172,7 +172,7 @@ const CATALOG: CatalogEntry[] = [
   {
     id: 'us_pce',
     code: 'US_PCECTPI_M',
-    name: '美国PCE物价指数',
+    name: '美国 PCE 物价指数',
     category: 'ECONOMIC',
     unit: '指数',
     frequency: 'monthly',
@@ -227,12 +227,12 @@ function splitCsvLine(line: string): string[] {
   let current = ''
   let inQuotes = false
 
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i]
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && line[index + 1] === '"') {
         current += '"'
-        i += 1
+        index += 1
       } else {
         inQuotes = !inQuotes
       }
@@ -271,6 +271,7 @@ async function loadLongSeries(relativePath: string, key: string): Promise<LocalM
           const [date, uniqueId, value] = splitCsvLine(line)
           if (uniqueId !== key) continue
           if (!value || !value.trim()) continue
+
           const numeric = Number(value)
           if (!Number.isFinite(numeric)) continue
           records.set(date, numeric)
@@ -278,10 +279,11 @@ async function loadLongSeries(relativePath: string, key: string): Promise<LocalM
 
         return Array.from(records.entries())
           .map(([date, value]) => ({ date, value }))
-          .sort((a, b) => a.date.localeCompare(b.date))
+          .sort((left, right) => left.date.localeCompare(right.date))
       })()
     )
   }
+
   return seriesCache.get(cacheKey)!
 }
 
@@ -305,16 +307,18 @@ async function loadWideSeries(relativePath: string, column: string): Promise<Loc
           const cells = splitCsvLine(line)
           const date = cells[dateIndex]
           const rawValue = cells[valueIndex]
-          if (!rawValue || !rawValue.trim()) continue
+          if (!date || !rawValue || !rawValue.trim()) continue
+
           const numeric = Number(rawValue)
-          if (!date || !Number.isFinite(numeric)) continue
+          if (!Number.isFinite(numeric)) continue
           points.push({ date, value: numeric })
         }
 
-        return points.sort((a, b) => a.date.localeCompare(b.date))
+        return points.sort((left, right) => left.date.localeCompare(right.date))
       })()
     )
   }
+
   return seriesCache.get(cacheKey)!
 }
 
@@ -324,27 +328,15 @@ async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
     : loadWideSeries(entry.sourceConfig.file, entry.sourceConfig.column)
 }
 
-export function listAvailableLocalMacroData() {
+export async function inspectLocalMacroDataset() {
+  const files = await fs.readdir(DATA_DIR)
+  const chinaDir = await fs.readdir(path.join(DATA_DIR, 'china_macro'))
+  const usDir = await fs.readdir(path.join(DATA_DIR, 'us_macro'))
+
   return {
-    files: [
-      'china_macro/china_macro_monthly_clean.csv',
-      'china_macro/china_macro_monthly.csv',
-      'china_macro/china_macro_daily.csv',
-      'china_macro/china_macro_real_akshare.csv',
-      'china_macro/china_macro_real_chronos.csv',
-      'china_macro/china_macro_tushare.csv',
-      'china_macro/china_macro_tushare_chronos.csv',
-      'china_macro/china_macro_tushare_full.csv',
-      'us_macro/us_macro_fred_monthly.csv',
-      'us_macro/us_macro_fred_daily.csv',
-      'us_macro/us_macro_fred_chronos.csv',
-      'us_macro/fred_series_catalog.csv',
-      'us_china_joint_chronos.csv',
-      'us_balance_sheet.csv',
-      'us_balance_sheet_weekly.csv',
-      'debt_dashboard_raw.pkl',
-      'dashboard_update_state.json',
-    ],
+    rootFiles: files,
+    chinaFiles: chinaDir,
+    usFiles: usDir,
     chinaIndicators: ['CPI_CHN', 'GDP_CHN_YOY', 'IP_CHN_YOY', 'M2_CHN_YOY', 'OIL_WTI', 'PMI_CHN', 'PPI_CHN', 'REPO7D_CHN', 'RS_CHN_YOY', 'TREASURY10Y_CHN', 'UR_CHN'],
     jointIndicators: ['CN_CPI_NT_YOY', 'CN_M0_YOY', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_PPI_YOY', 'CN_SF_MONTHLY', 'CN_SF_STOCK', 'CN_SHIBOR_1M', 'CN_SHIBOR_1W', 'CN_SHIBOR_1Y', 'CN_SHIBOR_2W', 'CN_SHIBOR_3M', 'CN_SHIBOR_6M', 'CN_SHIBOR_9M', 'CN_SHIBOR_ON', 'US_DCOILBRENTEU_M', 'US_DFF_M', 'US_DGS10_M', 'US_DGS2_M', 'US_DTWEXBGS_M', 'US_IORB_M', 'US_M2SL_M', 'US_MORTGAGE30US_M', 'US_PCECTPI_M', 'US_WALCL_M', 'US_WORAL_M', 'US_WTREGEN_M'],
     usColumns: ['BOGMBASE_M', 'BUSLOANS_M', 'CONSUMER_M', 'CPALTT01USM657N_M', 'DCOILBRENTEU_M', 'DEXCHUS_M', 'DFF_M', 'DGS10_M', 'DGS2_M', 'DGS5_M', 'DTWEXBGS_M', 'EFFR_M', 'EXCRESNS_M', 'GFDEBTN_M', 'IORB_M', 'M2NS_M', 'M2SL_M', 'MORTGAGE30US_M', 'PCECTPI_M', 'TOTRESNS_M', 'TREAST_M', 'WALCL_M', 'WORAL_M', 'WSHOMCB_M', 'WTREGEN_M'],
@@ -353,6 +345,7 @@ export function listAvailableLocalMacroData() {
 
 export function getLocalMacroIndicators(category?: string): LocalMacroIndicator[] {
   const normalized = category ? CATEGORY_ALIASES[category] ?? null : null
+
   return CATALOG
     .filter((entry) => !normalized || entry.category === normalized)
     .map((entry) => ({
@@ -374,7 +367,7 @@ export async function getLocalMacroData(
   const uniqueCodes = Array.from(new Set(codes.filter(Boolean)))
   const { startDate, endDate, limit = 60 } = options
 
-  const result = await Promise.all(
+  return Promise.all(
     uniqueCodes.map(async (code) => {
       const entry = CATALOG.find((item) => item.code === code)
       if (!entry) {
@@ -391,8 +384,6 @@ export async function getLocalMacroData(
       return { indicatorCode: code, data: points }
     })
   )
-
-  return result
 }
 
 export async function getLocalMacroLatest(codes?: string[]) {
