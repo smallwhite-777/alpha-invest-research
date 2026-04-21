@@ -1,12 +1,18 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import ReactECharts from 'echarts-for-react'
+import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { cn } from '@/lib/utils'
 import type { MacroIndicator } from '@/types/macro'
+import { ClientErrorBoundary } from '@/components/ui/ClientErrorBoundary'
+
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface MacroSeriesGroup {
   indicatorCode: string
@@ -115,6 +121,7 @@ function alignSeries(
 export default function Dashboard() {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const currentTime = useMemo(() => Date.now(), [])
 
   useEffect(() => setMounted(true), [])
 
@@ -233,7 +240,7 @@ export default function Dashboard() {
             ) : (
               insights.map((item, index) => {
                 const date = new Date(item.createdAt)
-                const days = Math.floor((Date.now() - date.getTime()) / 86400000)
+                const days = Math.floor((currentTime - date.getTime()) / 86400000)
                 const dateLabel = days === 0 ? '今天' : days === 1 ? '昨天' : `${date.getMonth() + 1}月${date.getDate()}日`
                 const importanceColor: Record<number, string> = {
                   5: 'bg-down',
@@ -338,7 +345,9 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div style={{ height: 130 }}>
-                    <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+                    <ClientErrorBoundary>
+                      <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+                    </ClientErrorBoundary>
                   </div>
                 </div>
               )

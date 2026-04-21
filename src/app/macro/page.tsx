@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { MacroIndicator } from '@/types/macro'
+import { ClientErrorBoundary } from '@/components/ui/ClientErrorBoundary'
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), {
   ssr: false,
@@ -62,7 +63,6 @@ function buildDataMap(groups: MacroGroup[]) {
 
 export default function MacroPage() {
   const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const [codeX, setCodeX] = useState(CORRELATION_DEFAULTS.codeX)
   const [codeY, setCodeY] = useState(CORRELATION_DEFAULTS.codeY)
   const [lag, setLag] = useState(CORRELATION_DEFAULTS.lag)
@@ -70,8 +70,6 @@ export default function MacroPage() {
   const [compareRight, setCompareRight] = useState('US_DGS10_M')
   const [correlationResult, setCorrelationResult] = useState<any>(null)
   const [correlationLoading, setCorrelationLoading] = useState(false)
-
-  useEffect(() => setMounted(true), [])
 
   const allCodes = useMemo(
     () => Array.from(new Set(SECTION_GROUPS.flatMap((group) => group.codes))).join(','),
@@ -344,7 +342,9 @@ function MiniChart({ data }: { data: Array<{ date: string; value: number }> }) {
 
   return (
     <div className="mt-3 h-16">
-      <ReactECharts option={option} style={{ height: '100%' }} opts={{ renderer: 'canvas' }} />
+      <ClientErrorBoundary>
+        <ReactECharts option={option} style={{ height: '100%' }} opts={{ renderer: 'canvas' }} />
+      </ClientErrorBoundary>
     </div>
   )
 }
@@ -414,7 +414,9 @@ function CorrelationPanel({
         </div>
       </div>
       <div className="h-[360px]">
-        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+        <ClientErrorBoundary>
+          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+        </ClientErrorBoundary>
       </div>
     </div>
   )
@@ -507,7 +509,9 @@ function ComparisonPanel({
         </div>
       </div>
       <div className="h-[380px]">
-        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+        <ClientErrorBoundary>
+          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+        </ClientErrorBoundary>
       </div>
     </div>
   )
