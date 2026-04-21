@@ -50,9 +50,9 @@ const HOME_MACRO_ITEMS: MacroCardItem[] = [
 ]
 
 const HOME_CHART_PAIRS = [
-  { codeX: 'CN_M2_YOY', codeY: 'US_M2SL_M', title: '中美流动性对比' },
-  { codeX: 'PMI_CHN', codeY: 'US_DGS10_M', title: '景气度 vs 美债利率' },
-  { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '工业价格 vs 原油' },
+  { codeX: 'CN_M2_YOY', codeY: 'PMI_CHN', title: '中国流动性 vs 制造业景气' },
+  { codeX: 'CN_PPI_YOY', codeY: 'US_DCOILBRENTEU_M', title: '中国 PPI vs 布伦特原油' },
+  { codeX: 'US_DFF_M', codeY: 'US_DGS10_M', title: '美联储政策利率 vs 美债长端利率' },
 ]
 
 const jsonFetcher = async <T,>(url: string): Promise<T> => {
