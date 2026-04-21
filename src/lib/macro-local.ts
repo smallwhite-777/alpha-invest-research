@@ -248,6 +248,49 @@ function splitCsvLine(line: string): string[] {
   return result
 }
 
+function toMonthEnd(date: string): string {
+  const [yearText, monthText] = date.slice(0, 10).split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return `${yearText}-${monthText}-${String(lastDay).padStart(2, '0')}`
+}
+
+function toQuarterEnd(date: string): string {
+  const [yearText, monthText] = date.slice(0, 10).split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const quarterEndMonth = Math.ceil(month / 3) * 3
+  const lastDay = new Date(Date.UTC(year, quarterEndMonth, 0)).getUTCDate()
+  return `${yearText}-${String(quarterEndMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+}
+
+function toYearEnd(date: string): string {
+  const yearText = date.slice(0, 4)
+  return `${yearText}-12-31`
+}
+
+function normalizeDateForFrequency(date: string, frequency: LocalMacroIndicator['frequency']): string {
+  if (!date) return date
+  if (frequency === 'monthly') return toMonthEnd(date)
+  if (frequency === 'quarterly') return toQuarterEnd(date)
+  if (frequency === 'yearly') return toYearEnd(date)
+  return date.slice(0, 10)
+}
+
+function normalizeSeries(points: LocalMacroPoint[], frequency: LocalMacroIndicator['frequency']): LocalMacroPoint[] {
+  const normalized = new Map<string, number>()
+
+  for (const point of points) {
+    const canonicalDate = normalizeDateForFrequency(point.date, frequency)
+    normalized.set(canonicalDate, point.value)
+  }
+
+  return Array.from(normalized.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((left, right) => left.date.localeCompare(right.date))
+}
+
 async function readFileCached(relativePath: string): Promise<string> {
   const fullPath = path.join(DATA_DIR, relativePath)
   if (!fileCache.has(fullPath)) {
@@ -266,20 +309,16 @@ async function loadLongSeries(relativePath: string, key: string): Promise<LocalM
         const lines = raw.split(/\r?\n/).filter(Boolean)
         if (lines.length <= 1) return []
 
-        const records = new Map<string, number>()
+        const points: LocalMacroPoint[] = []
         for (const line of lines.slice(1)) {
           const [date, uniqueId, value] = splitCsvLine(line)
-          if (uniqueId !== key) continue
-          if (!value || !value.trim()) continue
-
+          if (uniqueId !== key || !date) continue
           const numeric = Number(value)
           if (!Number.isFinite(numeric)) continue
-          records.set(date, numeric)
+          points.push({ date, value: numeric })
         }
 
-        return Array.from(records.entries())
-          .map(([date, value]) => ({ date, value }))
-          .sort((left, right) => left.date.localeCompare(right.date))
+        return points.sort((left, right) => left.date.localeCompare(right.date))
       })()
     )
   }
@@ -323,9 +362,12 @@ async function loadWideSeries(relativePath: string, column: string): Promise<Loc
 }
 
 async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
-  return entry.sourceConfig.type === 'long'
-    ? loadLongSeries(entry.sourceConfig.file, entry.sourceConfig.key)
-    : loadWideSeries(entry.sourceConfig.file, entry.sourceConfig.column)
+  const rawPoints =
+    entry.sourceConfig.type === 'long'
+      ? await loadLongSeries(entry.sourceConfig.file, entry.sourceConfig.key)
+      : await loadWideSeries(entry.sourceConfig.file, entry.sourceConfig.column)
+
+  return normalizeSeries(rawPoints, entry.frequency)
 }
 
 export async function inspectLocalMacroDataset() {
@@ -337,9 +379,6 @@ export async function inspectLocalMacroDataset() {
     rootFiles: files,
     chinaFiles: chinaDir,
     usFiles: usDir,
-    chinaIndicators: ['CPI_CHN', 'GDP_CHN_YOY', 'IP_CHN_YOY', 'M2_CHN_YOY', 'OIL_WTI', 'PMI_CHN', 'PPI_CHN', 'REPO7D_CHN', 'RS_CHN_YOY', 'TREASURY10Y_CHN', 'UR_CHN'],
-    jointIndicators: ['CN_CPI_NT_YOY', 'CN_M0_YOY', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_PPI_YOY', 'CN_SF_MONTHLY', 'CN_SF_STOCK', 'CN_SHIBOR_1M', 'CN_SHIBOR_1W', 'CN_SHIBOR_1Y', 'CN_SHIBOR_2W', 'CN_SHIBOR_3M', 'CN_SHIBOR_6M', 'CN_SHIBOR_9M', 'CN_SHIBOR_ON', 'US_DCOILBRENTEU_M', 'US_DFF_M', 'US_DGS10_M', 'US_DGS2_M', 'US_DTWEXBGS_M', 'US_IORB_M', 'US_M2SL_M', 'US_MORTGAGE30US_M', 'US_PCECTPI_M', 'US_WALCL_M', 'US_WORAL_M', 'US_WTREGEN_M'],
-    usColumns: ['BOGMBASE_M', 'BUSLOANS_M', 'CONSUMER_M', 'CPALTT01USM657N_M', 'DCOILBRENTEU_M', 'DEXCHUS_M', 'DFF_M', 'DGS10_M', 'DGS2_M', 'DGS5_M', 'DTWEXBGS_M', 'EFFR_M', 'EXCRESNS_M', 'GFDEBTN_M', 'IORB_M', 'M2NS_M', 'M2SL_M', 'MORTGAGE30US_M', 'PCECTPI_M', 'TOTRESNS_M', 'TREAST_M', 'WALCL_M', 'WORAL_M', 'WSHOMCB_M', 'WTREGEN_M'],
   }
 }
 
@@ -393,6 +432,7 @@ export async function getLocalMacroLatest(codes?: string[]) {
   return grouped.map((group) => {
     const latest = group.data[group.data.length - 1]
     const previous = group.data[group.data.length - 2]
+
     return {
       indicatorCode: group.indicatorCode,
       latestValue: latest?.value ?? null,
