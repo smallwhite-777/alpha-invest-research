@@ -41,7 +41,10 @@ type IndicatorSource =
   | { type: 'long'; file: string; key: string }
   | { type: 'wide'; file: string; column: string }
 
-type CatalogEntry = LocalMacroIndicator & { sourceConfig: IndicatorSource }
+type CatalogEntry = LocalMacroIndicator & {
+  sourceConfig: IndicatorSource
+  alternateSources?: IndicatorSource[]
+}
 
 const DATA_DIR = path.join(process.cwd(), 'macro-data', 'data')
 const EVENT_WHITELIST: Record<string, Set<string>> = {
@@ -136,8 +139,11 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '%',
     frequency: 'daily',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'REPO7D_CHN' },
+    source: 'china_macro_daily.csv',
+    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_daily.csv'), key: 'REPO7D_CHN' },
+    alternateSources: [
+      { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'REPO7D_CHN' },
+    ],
   },
   {
     id: 'cn_10y',
@@ -146,8 +152,11 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '%',
     frequency: 'daily',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'TREASURY10Y_CHN' },
+    source: 'china_macro_daily.csv',
+    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_daily.csv'), key: 'TREASURY10Y_CHN' },
+    alternateSources: [
+      { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'TREASURY10Y_CHN' },
+    ],
   },
   {
     id: 'us_fed_funds',
@@ -156,8 +165,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DFF_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DFF' }],
   },
   {
     id: 'us_10y',
@@ -166,8 +176,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DGS10_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DGS10' }],
   },
   {
     id: 'us_2y',
@@ -176,8 +187,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '%',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DGS2_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DGS2' }],
   },
   {
     id: 'us_m2',
@@ -196,8 +208,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'ECONOMIC',
     unit: '指数',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'PCECTPI_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'PCECTPI' }],
   },
   {
     id: 'us_dxy_broad',
@@ -206,8 +219,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'SENTIMENT',
     unit: '指数',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DTWEXBGS_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DTWEXBGS' }],
   },
   {
     id: 'oil_brent',
@@ -216,8 +230,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'COMMODITY',
     unit: '美元/桶',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DCOILBRENTEU_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DCOILBRENTEU' }],
   },
   {
     id: 'us_balance_sheet',
@@ -226,8 +241,9 @@ const CATALOG: CatalogEntry[] = [
     category: 'MONETARY',
     unit: '百万美元',
     frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
+    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
     sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'WALCL_M' },
+    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'WALCL' }],
   },
 ]
 
@@ -551,15 +567,40 @@ async function loadWideSeries(relativePath: string, column: string): Promise<Loc
   return seriesCache.get(cacheKey)!
 }
 
-async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
+async function loadSeriesFromSource(
+  source: IndicatorSource,
+  frequency: LocalMacroIndicator['frequency']
+): Promise<LocalMacroPoint[]> {
   const rawPoints =
-    entry.sourceConfig.type === 'long'
-      ? await loadLongSeries(entry.sourceConfig.file, entry.sourceConfig.key)
-      : await loadWideSeries(entry.sourceConfig.file, entry.sourceConfig.column)
+    source.type === 'long'
+      ? await loadLongSeries(source.file, source.key)
+      : await loadWideSeries(source.file, source.column)
 
-  const normalized = normalizeSeries(rawPoints, entry.frequency)
-  const gapFilled = fillShortGaps(normalized, entry.frequency)
+  const normalized = normalizeSeries(rawPoints, frequency)
+  const gapFilled = fillShortGaps(normalized, frequency)
   return smoothIsolatedSpikes(gapFilled)
+}
+
+function getSeriesFreshness(points: LocalMacroPoint[]): number {
+  if (!points.length) return -1
+  return new Date(points[points.length - 1].date).getTime()
+}
+
+async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
+  const candidates = await Promise.all(
+    [entry.sourceConfig, ...(entry.alternateSources ?? [])].map(async (source) => ({
+      source,
+      points: await loadSeriesFromSource(source, entry.frequency),
+    }))
+  )
+
+  candidates.sort((left, right) => {
+    const freshnessGap = getSeriesFreshness(right.points) - getSeriesFreshness(left.points)
+    if (freshnessGap !== 0) return freshnessGap
+    return right.points.length - left.points.length
+  })
+
+  return candidates[0]?.points ?? []
 }
 
 export async function inspectLocalMacroDataset() {
