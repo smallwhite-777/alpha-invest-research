@@ -146,6 +146,9 @@ export default function MacroPage() {
                 数据覆盖期：{formatDate(latestCoverage.min)} 至 {formatDate(latestCoverage.max)}。卡片展示的是指标所属统计期，不是抓取时间。
               </p>
             ) : null}
+            <p className="mt-1 text-xs text-muted-foreground">
+              若卡片标记“源数据偏旧”，表示本地 macro-data 对该指标的最新可用样本尚未更新到当前月份/季度。
+            </p>
           </div>
         </div>
 
@@ -304,6 +307,17 @@ function IndicatorCard({
   const latest = data.at(-1)
   const previous = data.at(-2)
   const change = latest && previous ? latest.value - previous.value : null
+  const staleThresholdDays =
+    indicator?.frequency === 'daily'
+      ? 14
+      : indicator?.frequency === 'monthly'
+        ? 70
+        : indicator?.frequency === 'quarterly'
+          ? 140
+          : 400
+  const isStale = latest
+    ? (Date.now() - new Date(latest.date).getTime()) / 86400000 > staleThresholdDays
+    : false
 
   return (
     <div className="bg-surface-low p-4 transition-colors hover:bg-surface-high">
@@ -311,9 +325,16 @@ function IndicatorCard({
         <div>
           <h3 className="text-sm font-medium text-foreground">{indicator?.name || indicator?.code || '未知指标'}</h3>
         </div>
-        <Badge variant="outline" className="rounded-none text-xs text-muted-foreground">
-          {indicator?.unit || '-'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isStale ? (
+            <Badge variant="outline" className="rounded-none text-xs text-amber-600 border-amber-500/40">
+              源数据偏旧
+            </Badge>
+          ) : null}
+          <Badge variant="outline" className="rounded-none text-xs text-muted-foreground">
+            {indicator?.unit || '-'}
+          </Badge>
+        </div>
       </div>
 
       {latest ? (
