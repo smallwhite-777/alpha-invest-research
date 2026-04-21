@@ -20,6 +20,23 @@ export interface LocalMacroPoint {
   value: number
 }
 
+export interface LocalMacroQuality {
+  score: number
+  status: 'good' | 'fair' | 'poor'
+  isStale: boolean
+  suspectLatest: boolean
+  notes: string[]
+}
+
+export interface LocalMacroLatest {
+  indicatorCode: string
+  latestValue: number | null
+  latestDate: string | null
+  previousValue: number | null
+  change: number | null
+  quality: LocalMacroQuality
+}
+
 type IndicatorSource =
   | { type: 'long'; file: string; key: string }
   | { type: 'wide'; file: string; column: string }
@@ -27,6 +44,9 @@ type IndicatorSource =
 type CatalogEntry = LocalMacroIndicator & { sourceConfig: IndicatorSource }
 
 const DATA_DIR = path.join(process.cwd(), 'macro-data', 'data')
+const EVENT_WHITELIST: Record<string, Set<string>> = {
+  US_DCOILBRENTEU_M: new Set(['2026-03-31']),
+}
 
 const CATALOG: CatalogEntry[] = [
   {
@@ -375,6 +395,92 @@ function smoothIsolatedSpikes(points: LocalMacroPoint[]): LocalMacroPoint[] {
   return cleaned
 }
 
+function daysBetween(laterDate: string, earlierDate: string): number {
+  const later = new Date(laterDate).getTime()
+  const earlier = new Date(earlierDate).getTime()
+  return Math.round((later - earlier) / 86400000)
+}
+
+function expectedFreshnessDays(frequency: LocalMacroIndicator['frequency']): number {
+  switch (frequency) {
+    case 'daily':
+      return 14
+    case 'weekly':
+      return 21
+    case 'monthly':
+      return 70
+    case 'quarterly':
+      return 140
+    case 'yearly':
+      return 400
+    default:
+      return 90
+  }
+}
+
+function detectLatestSuspect(entry: CatalogEntry, points: LocalMacroPoint[]): boolean {
+  if (points.length < 2) return false
+
+  const latest = points[points.length - 1]
+  const previous = points[points.length - 2]
+  if (EVENT_WHITELIST[entry.code]?.has(latest.date)) {
+    return false
+  }
+
+  const baseline = Math.max(Math.abs(previous.value), 1)
+  const pctChange = Math.abs((latest.value - previous.value) / baseline)
+  return pctChange >= 0.8
+}
+
+function assessSeriesQuality(entry: CatalogEntry, points: LocalMacroPoint[]): LocalMacroQuality {
+  let score = 100
+  const notes: string[] = []
+  const latest = points[points.length - 1]
+
+  if (!latest) {
+    return {
+      score: 0,
+      status: 'poor',
+      isStale: true,
+      suspectLatest: false,
+      notes: ['无可用数据'],
+    }
+  }
+
+  const stale = daysBetween(new Date().toISOString().slice(0, 10), latest.date) > expectedFreshnessDays(entry.frequency)
+  if (stale) {
+    score -= 25
+    notes.push('最新数据偏旧')
+  }
+
+  const suspectLatest = detectLatestSuspect(entry, points)
+  if (suspectLatest) {
+    score -= 20
+    notes.push('最新值波动异常，建议复核源数据')
+  }
+
+  if (points.length < 12 && entry.frequency !== 'yearly') {
+    score -= 15
+    notes.push('可用历史样本偏少')
+  }
+
+  if (points.length < 4 && entry.frequency === 'quarterly') {
+    score -= 15
+    notes.push('季度样本偏少')
+  }
+
+  const status: LocalMacroQuality['status'] =
+    score >= 80 ? 'good' : score >= 60 ? 'fair' : 'poor'
+
+  return {
+    score: Math.max(0, score),
+    status,
+    isStale: stale,
+    suspectLatest,
+    notes,
+  }
+}
+
 async function readFileCached(relativePath: string): Promise<string> {
   const fullPath = path.join(DATA_DIR, relativePath)
   if (!fileCache.has(fullPath)) {
@@ -511,11 +617,12 @@ export async function getLocalMacroData(
   )
 }
 
-export async function getLocalMacroLatest(codes?: string[]) {
+export async function getLocalMacroLatest(codes?: string[]): Promise<LocalMacroLatest[]> {
   const selectedCodes = codes?.length ? codes : CATALOG.map((item) => item.code)
-  const grouped = await getLocalMacroData(selectedCodes, { limit: 2 })
+  const grouped = await getLocalMacroData(selectedCodes, { limit: 24 })
 
   return grouped.map((group) => {
+    const entry = CATALOG.find((item) => item.code === group.indicatorCode)
     const latest = group.data[group.data.length - 1]
     const previous = group.data[group.data.length - 2]
 
@@ -525,6 +632,15 @@ export async function getLocalMacroLatest(codes?: string[]) {
       latestDate: latest?.date ?? null,
       previousValue: previous?.value ?? null,
       change: latest && previous ? latest.value - previous.value : null,
+      quality: entry
+        ? assessSeriesQuality(entry, group.data)
+        : {
+            score: 0,
+            status: 'poor',
+            isStale: true,
+            suspectLatest: false,
+            notes: ['指标未在目录中注册'],
+          },
     }
   })
 }
