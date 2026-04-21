@@ -291,6 +291,9 @@ export default function Dashboard() {
               高级分析 →
             </Link>
           </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            说明：按月对齐后，各序列单独归一化到 0-100 仅用于比较趋势；相关系数 r 基于原始值计算。
+          </p>
           <div className="grid grid-cols-3 gap-3">
             {HOME_CHART_PAIRS.map((pair) => {
               const indicatorX = indicatorList.find((item) => item.code === pair.codeX)

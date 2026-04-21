@@ -163,6 +163,9 @@ export default function MacroPage() {
           <TabsContent value="correlation" className="space-y-4">
             <div className="bg-surface-low p-4">
               <h3 className="mb-4 font-editorial text-sm font-medium text-foreground">参数选择</h3>
+              <p className="mb-4 text-xs text-muted-foreground">
+                说明：相关性分析使用原始值；若进入对比图，展示曲线可能按时间对齐或双轴展示，不代表统一量纲。
+              </p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <Select value={codeX} onValueChange={(value) => value && setCodeX(value)}>
                   <SelectTrigger className="rounded-none bg-surface text-foreground">
@@ -223,6 +226,9 @@ export default function MacroPage() {
           <TabsContent value="comparison" className="space-y-4">
             <div className="bg-surface-low p-4">
               <h3 className="mb-4 font-editorial text-sm font-medium text-foreground">双轴对比</h3>
+              <p className="mb-4 text-xs text-muted-foreground">
+                说明：双轴对比保留各自原始单位，仅共用时间轴，用于观察同步性而非直接比较绝对值。
+              </p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Select value={compareLeft} onValueChange={(value) => value && setCompareLeft(value)}>
                   <SelectTrigger className="rounded-none bg-surface text-foreground">
