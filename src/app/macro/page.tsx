@@ -89,6 +89,19 @@ export default function MacroPage() {
   )
 
   const dataMap = useMemo(() => buildDataMap(macroGroups), [macroGroups])
+  const latestCoverage = useMemo(() => {
+    const dates = macroGroups
+      .map((group) => group.data[group.data.length - 1]?.date)
+      .filter((date): date is string => Boolean(date))
+      .sort()
+
+    if (dates.length === 0) return null
+
+    return {
+      min: dates[0],
+      max: dates[dates.length - 1],
+    }
+  }, [macroGroups])
   const isDark = resolvedTheme === 'dark'
 
   const compareCodes = useMemo(() => `${compareLeft},${compareRight}`, [compareLeft, compareRight])
@@ -128,6 +141,11 @@ export default function MacroPage() {
           <div>
             <h1 className="font-editorial text-xl font-semibold text-foreground">宏观看板</h1>
             <p className="mt-1 text-sm text-muted-foreground">基于本地 macro-data 的中美宏观指标与相关性分析</p>
+            {latestCoverage ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                数据覆盖期：{formatDate(latestCoverage.min)} 至 {formatDate(latestCoverage.max)}。卡片展示的是指标所属统计期，不是抓取时间。
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -304,7 +322,7 @@ function IndicatorCard({
             <span className="text-2xl font-semibold text-foreground">{latest.value.toFixed(2)}</span>
             <span className="text-xs text-muted-foreground">{indicator?.unit}</span>
           </div>
-          <div className="text-xs text-muted-foreground">更新时间：{formatDate(latest.date)}</div>
+          <div className="text-xs text-muted-foreground">数据所属期：{formatDate(latest.date)}</div>
           <div className={`text-sm font-medium tabular-nums ${change !== null && change >= 0 ? 'text-up' : 'text-down'}`}>
             变动 {change !== null ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}` : '-'}
           </div>
