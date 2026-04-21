@@ -106,14 +106,29 @@ function alignSeries(
   seriesX: Array<{ date: string; value: number }>,
   seriesY: Array<{ date: string; value: number }>
 ) {
-  const mapY = new Map(seriesY.map((item) => [item.date, item.value]))
-  const points = seriesX
-    .filter((item) => mapY.has(item.date))
-    .map((item) => ({
-      date: item.date,
-      x: item.value,
-      y: mapY.get(item.date)!,
-    }))
+  const toMonthKey = (date: string) => date.slice(0, 7)
+  const monthlyX = new Map<string, { date: string; value: number }>()
+  const monthlyY = new Map<string, { date: string; value: number }>()
+
+  for (const item of seriesX) {
+    monthlyX.set(toMonthKey(item.date), item)
+  }
+
+  for (const item of seriesY) {
+    monthlyY.set(toMonthKey(item.date), item)
+  }
+
+  const points = Array.from(monthlyX.entries())
+    .filter(([month]) => monthlyY.has(month))
+    .map(([month, itemX]) => {
+      const itemY = monthlyY.get(month)!
+      return {
+        date: itemX.date > itemY.date ? itemX.date : itemY.date,
+        x: itemX.value,
+        y: itemY.value,
+      }
+    })
+    .sort((left, right) => left.date.localeCompare(right.date))
 
   return points.slice(-36)
 }
@@ -143,7 +158,7 @@ export default function Dashboard() {
     { revalidateOnFocus: false, dedupingInterval: 300000 }
   )
   const { data: macroGroups = [] } = useSWR<MacroSeriesGroup[]>(
-    `/api/macro/data?codes=${indicatorCodes}&limit=72`,
+    `/api/macro/data?codes=${indicatorCodes}&limit=240`,
     jsonFetcher,
     { revalidateOnFocus: false, dedupingInterval: 300000 }
   )
