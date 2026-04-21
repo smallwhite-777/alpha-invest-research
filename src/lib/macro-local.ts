@@ -291,6 +291,90 @@ function normalizeSeries(points: LocalMacroPoint[], frequency: LocalMacroIndicat
     .sort((left, right) => left.date.localeCompare(right.date))
 }
 
+function parseDateParts(date: string) {
+  const [yearText, monthText, dayText] = date.slice(0, 10).split('-')
+  return {
+    year: Number(yearText),
+    month: Number(monthText),
+    day: Number(dayText),
+  }
+}
+
+function addPeriods(date: string, frequency: LocalMacroIndicator['frequency'], count: number): string {
+  if (frequency === 'monthly') {
+    const { year, month } = parseDateParts(date)
+    const next = new Date(Date.UTC(year, month - 1 + count, 1))
+    return toMonthEnd(
+      `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`
+    )
+  }
+
+  if (frequency === 'quarterly') {
+    const { year, month } = parseDateParts(date)
+    const quarterIndex = Math.floor((month - 1) / 3)
+    const next = new Date(Date.UTC(year, quarterIndex * 3 + count * 3, 1))
+    return toQuarterEnd(
+      `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`
+    )
+  }
+
+  if (frequency === 'yearly') {
+    const { year } = parseDateParts(date)
+    return `${year + count}-12-31`
+  }
+
+  return date
+}
+
+function fillShortGaps(points: LocalMacroPoint[], frequency: LocalMacroIndicator['frequency']): LocalMacroPoint[] {
+  if (!['monthly', 'quarterly', 'yearly'].includes(frequency) || points.length < 2) {
+    return points
+  }
+
+  const filled: LocalMacroPoint[] = [points[0]]
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = filled[filled.length - 1]
+    const current = points[index]
+    const expectedNext = addPeriods(previous.date, frequency, 1)
+
+    if (current.date !== expectedNext) {
+      const maybeSecond = addPeriods(previous.date, frequency, 2)
+      if (current.date === maybeSecond) {
+        filled.push({
+          date: expectedNext,
+          value: previous.value + (current.value - previous.value) / 2,
+        })
+      }
+    }
+
+    filled.push(current)
+  }
+
+  return filled
+}
+
+function smoothIsolatedSpikes(points: LocalMacroPoint[]): LocalMacroPoint[] {
+  if (points.length < 3) return points
+
+  const cleaned = points.map((point) => ({ ...point }))
+  for (let index = 1; index < cleaned.length - 1; index += 1) {
+    const previous = cleaned[index - 1]
+    const current = cleaned[index]
+    const next = cleaned[index + 1]
+
+    const baseline = Math.max(Math.abs(previous.value), Math.abs(next.value), 1)
+    const jumpPrev = Math.abs(current.value - previous.value) / baseline
+    const jumpNext = Math.abs(current.value - next.value) / baseline
+    const neighborDiff = Math.abs(next.value - previous.value) / baseline
+
+    if (jumpPrev > 0.6 && jumpNext > 0.6 && neighborDiff < 0.25) {
+      current.value = previous.value + (next.value - previous.value) / 2
+    }
+  }
+
+  return cleaned
+}
+
 async function readFileCached(relativePath: string): Promise<string> {
   const fullPath = path.join(DATA_DIR, relativePath)
   if (!fileCache.has(fullPath)) {
@@ -367,7 +451,9 @@ async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
       ? await loadLongSeries(entry.sourceConfig.file, entry.sourceConfig.key)
       : await loadWideSeries(entry.sourceConfig.file, entry.sourceConfig.column)
 
-  return normalizeSeries(rawPoints, entry.frequency)
+  const normalized = normalizeSeries(rawPoints, entry.frequency)
+  const gapFilled = fillShortGaps(normalized, entry.frequency)
+  return smoothIsolatedSpikes(gapFilled)
 }
 
 export async function inspectLocalMacroDataset() {
