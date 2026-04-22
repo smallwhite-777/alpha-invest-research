@@ -61,6 +61,7 @@ interface Message {
   skill?: string
   warnings?: string[]
   evidence_summary?: Record<string, number>
+  suppressSources?: boolean
   timestamp: number
   isLoading?: boolean  // 新增：标记是否正在加载
 }
@@ -1617,17 +1618,18 @@ export default function AnalyzePage() {
 
         setMessages((prev) => prev.map((msg) =>
           msg.id === loadingMessageId
-            ? {
-                ...msg,
-                isLoading: false,
-                content: '已生成深度分析写作框架。你可以先在右侧编辑结构、补充观点或删改章节，然后点击“确认生成文章”。',
-                skill: data.skill,
-                warnings: data.warnings || [],
-                evidence_summary: data.evidence_summary || {},
-                sources: data.sources || [],
-                steps: data.steps || [],
-                total_duration_ms: data.total_duration_ms,
-              }
+              ? {
+                  ...msg,
+                  isLoading: false,
+                  content: '已生成深度分析写作框架。你可以先在右侧编辑结构、补充观点或删改章节，然后点击“确认生成文章”。',
+                  skill: data.skill,
+                  warnings: data.warnings || [],
+                  evidence_summary: data.evidence_summary || {},
+                  sources: [],
+                  suppressSources: true,
+                  steps: data.steps || [],
+                  total_duration_ms: data.total_duration_ms,
+                }
             : msg
         ))
         return
@@ -1955,7 +1957,7 @@ export default function AnalyzePage() {
                           <FormattedMessage content={message.content} />
                         </div>
                         {/* Knowledge base sources */}
-                        {message.sources && message.sources.length > 0 && (
+                        {!message.suppressSources && message.sources && message.sources.length > 0 && (
                           <div className="bg-surface-high px-3 py-2">
                             <div className="flex items-center gap-2 mb-2">
                               <Database className="h-3.5 w-3.5 text-muted-foreground" />
