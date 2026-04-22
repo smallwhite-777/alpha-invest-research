@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, Database, CheckCircle2, Clock, XCircle, Loader, GripVertical, FilePenLine, Newspaper, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import type { AssistantApiResponse } from '@/lib/assistant/types'
 
 interface UploadedFile {
   id: string
