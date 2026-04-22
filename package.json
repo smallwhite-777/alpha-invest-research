@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "macro:rebuild-data": "tsx scripts/rebuild-macro-data.ts",
+    "macro:refresh-upstream": "python scripts/refresh_macro_upstream.py",
+    "macro:update": "tsx scripts/update-macro-data.ts",
     "import:wsj": "tsx scripts/import-wsj-events.ts",
     "read:wsj": "tsx scripts/read-wsj-and-save.ts",
     "postinstall": "prisma generate"

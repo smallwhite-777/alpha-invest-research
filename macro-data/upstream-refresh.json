@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-04-22T07:31:38.967438+00:00",
+  "upstreamDataDir": "D:\\投研web 3\\投研网站 3\\Knowledgebase\\timesfm_deploy\\data",
+  "us": {
+    "success": true,
+    "daily_rows": 26319,
+    "monthly_rows": 952,
+    "failures": [],
+    "latest_dates": {
+      "WALCL": "2026-04-15",
+      "TREAST": "2026-04-15",
+      "WSHOMCB": "2026-04-15",
+      "WTREGEN": "2026-04-15",
+      "TOTRESNS": "2026-02-01",
+      "M2SL": "2026-02-01",
+      "M2NS": "2026-02-01",
+      "BOGMBASE": "2026-02-01",
+      "DFF": "2026-04-20",
+      "DGS10": "2026-04-20",
+      "DGS2": "2026-04-20",
+      "DGS5": "2026-04-20",
+      "IORB": "2026-04-22",
+      "EFFR": "2026-04-20",
+      "MORTGAGE30US": "2026-04-16",
+      "BUSLOANS": "2026-03-01",
+      "CONSUMER": "2026-03-01",
+      "PCECTPI": "2025-10-01",
+      "CPALTT01USM657N": "2024-03-01",
+      "WORAL": "2026-04-15",
+      "GFDEBTN": "2025-10-01",
+      "EXCRESNS": "2013-05-01",
+      "DTWEXBGS": "2026-04-17",
+      "DEXCHUS": "2026-04-17",
+      "DCOILBRENTEU": "2026-04-13"
+    }
+  },
+  "china": {
+    "success": true,
+    "monthly_rows": 18343,
+    "joint_rows": 4743,
+    "latest_dates": {
+      "CN_CPI_NT_YOY": "2026-03-31",
+      "CN_PPI_YOY": "2026-03-31",
+      "PMI_CHN": "2026-03-31",
+      "GDP_CHN_YOY": "2026-01-31",
+      "CN_M1_YOY": "2026-03-31",
+      "CN_M2_YOY": "2026-03-31",
+      "RS_CHN_YOY": "2026-03-31"
+    },
+    "failures": [
+      "IP_CHN_YOY"
+    ]
+  }
+}

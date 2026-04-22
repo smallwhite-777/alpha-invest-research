@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-04-22T06:56:09.258Z",
+  "generatedAt": "2026-04-22T07:35:05.303Z",
   "upstreamDir": "D:\\投研web 3\\投研网站 3\\Knowledgebase\\timesfm_deploy\\data",
   "totalIndicators": 18,
-  "totalRows": 19278,
+  "totalRows": 21325,
   "latestDates": {
-    "CN_CPI_NT_YOY": "2026-02-28",
-    "CN_PPI_YOY": "2026-02-28",
-    "CN_M2_YOY": "2026-02-28",
-    "CN_M1_YOY": "2026-02-28",
-    "PMI_CHN": "2025-12-31",
-    "GDP_CHN_YOY": "2025-12-31",
+    "CN_CPI_NT_YOY": "2026-03-31",
+    "CN_PPI_YOY": "2026-03-31",
+    "CN_M2_YOY": "2026-03-31",
+    "CN_M1_YOY": "2026-03-31",
+    "PMI_CHN": "2026-03-31",
+    "GDP_CHN_YOY": "2026-03-31",
     "IP_CHN_YOY": "2025-12-31",
-    "RS_CHN_YOY": "2025-12-31",
+    "RS_CHN_YOY": "2026-03-31",
     "REPO7D_CHN": "2025-12-31",
     "TREASURY10Y_CHN": "2025-12-31",
     "US_DFF_M": "2026-04-30",
@@ -20,7 +20,7 @@
     "US_M2SL_M": "2026-02-28",
     "US_PCECTPI_M": "2025-10-31",
     "US_DTWEXBGS_M": "2026-04-30",
-    "US_DCOILBRENTEU_M": "2026-03-31",
+    "US_DCOILBRENTEU_M": "2026-04-30",
     "US_WALCL_M": "2026-04-30"
   }
 }
