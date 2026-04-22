@@ -1,6 +1,6 @@
 import 'dotenv/config'
 
-import { importEventDatabase } from '../src/lib/intelligence/event-database-import'
+import { importEventDatabase, importEventDatabaseIncremental } from '../src/lib/intelligence/event-database-import'
 
 function readFlag(name: string) {
   return process.argv.includes(name)
@@ -15,12 +15,33 @@ function readStringFlag(name: string): string | undefined {
   return process.argv[index + 1]
 }
 
+function readNumberFlag(name: string): number | undefined {
+  const index = process.argv.indexOf(name)
+  if (index === -1) {
+    return undefined
+  }
+
+  const value = Number(process.argv[index + 1])
+  return Number.isFinite(value) ? value : undefined
+}
+
 async function main() {
-  const result = await importEventDatabase({
+  const sharedOptions = {
     latestOnly: readFlag('--latest-only'),
     dryRun: readFlag('--dry-run'),
     filePath: readStringFlag('--path'),
-  })
+    startDate: readStringFlag('--start-date'),
+    endDate: readStringFlag('--end-date'),
+  }
+
+  const result = readFlag('--incremental')
+    ? await importEventDatabaseIncremental({
+        ...sharedOptions,
+        batchDays: readNumberFlag('--batch-days'),
+        newestFirst: !readFlag('--oldest-first'),
+        maxBatches: readNumberFlag('--max-batches'),
+      })
+    : await importEventDatabase(sharedOptions)
 
   console.log(JSON.stringify(result, null, 2))
 }

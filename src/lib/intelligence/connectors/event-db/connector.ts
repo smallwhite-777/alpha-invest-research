@@ -34,6 +34,13 @@ export interface EventDatabasePayload {
   originalContent: string
 }
 
+function isWithinDateRange(date: string | undefined, startDate?: string, endDate?: string) {
+  if (!date) return false
+  if (startDate && date < startDate) return false
+  if (endDate && date > endDate) return false
+  return true
+}
+
 function slugifySourceCode(sourceName: string) {
   return normalizeText(sourceName)
     .toLowerCase()
@@ -85,6 +92,27 @@ export async function getEventDatabasePreview(filePath?: string) {
   }
 }
 
+export async function getEventDatabaseAvailableDates(filePath?: string) {
+  const resolvedPath = resolveEventDatabasePath(filePath)
+  await ensureFileExists(resolvedPath)
+
+  const parsed = JSON.parse(await fs.readFile(resolvedPath, 'utf8')) as EventDatabaseFile
+  const dates = new Set<string>()
+
+  for (const [, bucket] of Object.entries(parsed)) {
+    for (const [, items] of Object.entries(bucket.sources ?? {})) {
+      for (const item of items) {
+        const normalizedDate = normalizeDate(item?.date)
+        if (normalizedDate) {
+          dates.add(normalizedDate)
+        }
+      }
+    }
+  }
+
+  return Array.from(dates).sort((left, right) => left.localeCompare(right))
+}
+
 export class EventDatabaseConnector implements IntelligenceConnector {
   sourceCode = EVENT_DB_SOURCE_CODE
   sourceName = EVENT_DB_SOURCE_NAME
@@ -103,7 +131,14 @@ export class EventDatabaseConnector implements IntelligenceConnector {
 
       for (const [sourceName, items] of Object.entries(bucket?.sources ?? {})) {
         const normalizedSourceName = normalizeText(sourceName)
-        const selectedItems = options.latestOnly ? items.slice(-20) : items
+        const filteredByDate = items.filter(item => {
+          const normalizedItemDate = normalizeDate(item?.date)
+          if (options.startDate || options.endDate) {
+            return isWithinDateRange(normalizedItemDate, options.startDate, options.endDate)
+          }
+          return true
+        })
+        const selectedItems = options.latestOnly ? filteredByDate.slice(-20) : filteredByDate
 
         selectedItems.forEach((item, index) => {
           const normalizedContent = normalizeText(item?.content)

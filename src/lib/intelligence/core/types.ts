@@ -58,6 +58,8 @@ export interface IntelligenceConnectorFetchOptions {
   latestOnly?: boolean
   limit?: number
   directoryPath?: string
+  startDate?: string
+  endDate?: string
 }
 
 export interface IntelligenceConnector {
