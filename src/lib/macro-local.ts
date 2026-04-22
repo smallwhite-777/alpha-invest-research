@@ -3,14 +3,17 @@ import 'server-only'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { MacroCategory } from '@/lib/constants'
+import { MACRO_CATALOG, type MacroCatalogEntry, type MacroFrequency } from '@/lib/macro-catalog'
 
 export interface LocalMacroIndicator {
   id: string
+  createdAt: string
+  updatedAt: string
   code: string
   name: string
   category: MacroCategory
   unit: string
-  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+  frequency: MacroFrequency
   source: string
   description?: string
 }
@@ -37,215 +40,11 @@ export interface LocalMacroLatest {
   quality: LocalMacroQuality
 }
 
-type IndicatorSource =
-  | { type: 'long'; file: string; key: string }
-  | { type: 'wide'; file: string; column: string }
-
-type CatalogEntry = LocalMacroIndicator & {
-  sourceConfig: IndicatorSource
-  alternateSources?: IndicatorSource[]
-}
-
 const DATA_DIR = path.join(process.cwd(), 'macro-data', 'data')
+const PUBLISHED_SERIES_FILE = path.join(DATA_DIR, 'series.csv')
 const EVENT_WHITELIST: Record<string, Set<string>> = {
   US_DCOILBRENTEU_M: new Set(['2026-03-31']),
 }
-
-const CATALOG: CatalogEntry[] = [
-  {
-    id: 'cn_cpi_yoy',
-    code: 'CN_CPI_NT_YOY',
-    name: '中国 CPI 同比',
-    category: 'ECONOMIC',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'us_china_joint_chronos.csv',
-    sourceConfig: { type: 'long', file: 'us_china_joint_chronos.csv', key: 'CN_CPI_NT_YOY' },
-  },
-  {
-    id: 'cn_ppi_yoy',
-    code: 'CN_PPI_YOY',
-    name: '中国 PPI 同比',
-    category: 'ECONOMIC',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'us_china_joint_chronos.csv',
-    sourceConfig: { type: 'long', file: 'us_china_joint_chronos.csv', key: 'CN_PPI_YOY' },
-  },
-  {
-    id: 'cn_m2_yoy',
-    code: 'CN_M2_YOY',
-    name: '中国 M2 同比',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'us_china_joint_chronos.csv',
-    sourceConfig: { type: 'long', file: 'us_china_joint_chronos.csv', key: 'CN_M2_YOY' },
-  },
-  {
-    id: 'cn_m1_yoy',
-    code: 'CN_M1_YOY',
-    name: '中国 M1 同比',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'us_china_joint_chronos.csv',
-    sourceConfig: { type: 'long', file: 'us_china_joint_chronos.csv', key: 'CN_M1_YOY' },
-  },
-  {
-    id: 'cn_pmi',
-    code: 'PMI_CHN',
-    name: '中国制造业 PMI',
-    category: 'ECONOMIC',
-    unit: '点',
-    frequency: 'monthly',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'PMI_CHN' },
-  },
-  {
-    id: 'cn_gdp_yoy',
-    code: 'GDP_CHN_YOY',
-    name: '中国 GDP 同比',
-    category: 'ECONOMIC',
-    unit: '%',
-    frequency: 'quarterly',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'GDP_CHN_YOY' },
-  },
-  {
-    id: 'cn_ip_yoy',
-    code: 'IP_CHN_YOY',
-    name: '中国工业增加值同比',
-    category: 'ECONOMIC',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'IP_CHN_YOY' },
-  },
-  {
-    id: 'cn_retail_yoy',
-    code: 'RS_CHN_YOY',
-    name: '中国社零同比',
-    category: 'ECONOMIC',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'china_macro_monthly_clean.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'RS_CHN_YOY' },
-  },
-  {
-    id: 'cn_repo7d',
-    code: 'REPO7D_CHN',
-    name: '中国 7 天回购利率',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'daily',
-    source: 'china_macro_daily.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_daily.csv'), key: 'REPO7D_CHN' },
-    alternateSources: [
-      { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'REPO7D_CHN' },
-    ],
-  },
-  {
-    id: 'cn_10y',
-    code: 'TREASURY10Y_CHN',
-    name: '中国 10 年国债收益率',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'daily',
-    source: 'china_macro_daily.csv',
-    sourceConfig: { type: 'long', file: path.join('china_macro', 'china_macro_daily.csv'), key: 'TREASURY10Y_CHN' },
-    alternateSources: [
-      { type: 'long', file: path.join('china_macro', 'china_macro_monthly_clean.csv'), key: 'TREASURY10Y_CHN' },
-    ],
-  },
-  {
-    id: 'us_fed_funds',
-    code: 'US_DFF_M',
-    name: '美国联邦基金利率',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DFF_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DFF' }],
-  },
-  {
-    id: 'us_10y',
-    code: 'US_DGS10_M',
-    name: '美国 10 年国债收益率',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DGS10_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DGS10' }],
-  },
-  {
-    id: 'us_2y',
-    code: 'US_DGS2_M',
-    name: '美国 2 年国债收益率',
-    category: 'MONETARY',
-    unit: '%',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DGS2_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DGS2' }],
-  },
-  {
-    id: 'us_m2',
-    code: 'US_M2SL_M',
-    name: '美国 M2',
-    category: 'MONETARY',
-    unit: '十亿美元',
-    frequency: 'monthly',
-    source: 'us_macro_fred_monthly.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'M2SL_M' },
-  },
-  {
-    id: 'us_pce',
-    code: 'US_PCECTPI_M',
-    name: '美国 PCE 物价指数',
-    category: 'ECONOMIC',
-    unit: '指数',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'PCECTPI_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'PCECTPI' }],
-  },
-  {
-    id: 'us_dxy_broad',
-    code: 'US_DTWEXBGS_M',
-    name: '美元广义指数',
-    category: 'SENTIMENT',
-    unit: '指数',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DTWEXBGS_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DTWEXBGS' }],
-  },
-  {
-    id: 'oil_brent',
-    code: 'US_DCOILBRENTEU_M',
-    name: '布伦特原油',
-    category: 'COMMODITY',
-    unit: '美元/桶',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'DCOILBRENTEU_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'DCOILBRENTEU' }],
-  },
-  {
-    id: 'us_balance_sheet',
-    code: 'US_WALCL_M',
-    name: '美联储总资产',
-    category: 'MONETARY',
-    unit: '百万美元',
-    frequency: 'monthly',
-    source: 'auto: us_macro_fred_monthly.csv / us_macro_fred_daily.csv',
-    sourceConfig: { type: 'wide', file: path.join('us_macro', 'us_macro_fred_monthly.csv'), column: 'WALCL_M' },
-    alternateSources: [{ type: 'wide', file: path.join('us_macro', 'us_macro_fred_daily.csv'), column: 'WALCL' }],
-  },
-]
 
 const CATEGORY_ALIASES: Record<string, MacroCategory> = {
   ECONOMIC: 'ECONOMIC',
@@ -256,7 +55,7 @@ const CATEGORY_ALIASES: Record<string, MacroCategory> = {
 }
 
 const fileCache = new Map<string, Promise<string>>()
-const seriesCache = new Map<string, Promise<LocalMacroPoint[]>>()
+const publishedSeriesCache = new Map<string, Promise<Map<string, LocalMacroPoint[]>>>()
 
 function splitCsvLine(line: string): string[] {
   const result: string[] = []
@@ -306,7 +105,7 @@ function toYearEnd(date: string): string {
   return `${yearText}-12-31`
 }
 
-function normalizeDateForFrequency(date: string, frequency: LocalMacroIndicator['frequency']): string {
+function normalizeDateForFrequency(date: string, frequency: MacroFrequency): string {
   if (!date) return date
   if (frequency === 'monthly') return toMonthEnd(date)
   if (frequency === 'quarterly') return toQuarterEnd(date)
@@ -314,7 +113,7 @@ function normalizeDateForFrequency(date: string, frequency: LocalMacroIndicator[
   return date.slice(0, 10)
 }
 
-function normalizeSeries(points: LocalMacroPoint[], frequency: LocalMacroIndicator['frequency']): LocalMacroPoint[] {
+function normalizeSeries(points: LocalMacroPoint[], frequency: MacroFrequency): LocalMacroPoint[] {
   const normalized = new Map<string, number>()
 
   for (const point of points) {
@@ -336,22 +135,18 @@ function parseDateParts(date: string) {
   }
 }
 
-function addPeriods(date: string, frequency: LocalMacroIndicator['frequency'], count: number): string {
+function addPeriods(date: string, frequency: MacroFrequency, count: number): string {
   if (frequency === 'monthly') {
     const { year, month } = parseDateParts(date)
     const next = new Date(Date.UTC(year, month - 1 + count, 1))
-    return toMonthEnd(
-      `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`
-    )
+    return toMonthEnd(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`)
   }
 
   if (frequency === 'quarterly') {
     const { year, month } = parseDateParts(date)
     const quarterIndex = Math.floor((month - 1) / 3)
     const next = new Date(Date.UTC(year, quarterIndex * 3 + count * 3, 1))
-    return toQuarterEnd(
-      `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`
-    )
+    return toQuarterEnd(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`)
   }
 
   if (frequency === 'yearly') {
@@ -362,7 +157,7 @@ function addPeriods(date: string, frequency: LocalMacroIndicator['frequency'], c
   return date
 }
 
-function fillShortGaps(points: LocalMacroPoint[], frequency: LocalMacroIndicator['frequency']): LocalMacroPoint[] {
+function fillShortGaps(points: LocalMacroPoint[], frequency: MacroFrequency): LocalMacroPoint[] {
   if (!['monthly', 'quarterly', 'yearly'].includes(frequency) || points.length < 2) {
     return points
   }
@@ -417,7 +212,7 @@ function daysBetween(laterDate: string, earlierDate: string): number {
   return Math.round((later - earlier) / 86400000)
 }
 
-function expectedFreshnessDays(frequency: LocalMacroIndicator['frequency']): number {
+function expectedFreshnessDays(frequency: MacroFrequency): number {
   switch (frequency) {
     case 'daily':
       return 14
@@ -434,7 +229,7 @@ function expectedFreshnessDays(frequency: LocalMacroIndicator['frequency']): num
   }
 }
 
-function detectLatestSuspect(entry: CatalogEntry, points: LocalMacroPoint[]): boolean {
+function detectLatestSuspect(entry: MacroCatalogEntry, points: LocalMacroPoint[]): boolean {
   if (points.length < 2) return false
 
   const latest = points[points.length - 1]
@@ -448,7 +243,7 @@ function detectLatestSuspect(entry: CatalogEntry, points: LocalMacroPoint[]): bo
   return pctChange >= 0.8
 }
 
-function assessSeriesQuality(entry: CatalogEntry, points: LocalMacroPoint[]): LocalMacroQuality {
+function assessSeriesQuality(entry: MacroCatalogEntry, points: LocalMacroPoint[]): LocalMacroQuality {
   let score = 100
   const notes: string[] = []
   const latest = points[points.length - 1]
@@ -485,8 +280,7 @@ function assessSeriesQuality(entry: CatalogEntry, points: LocalMacroPoint[]): Lo
     notes.push('季度样本偏少')
   }
 
-  const status: LocalMacroQuality['status'] =
-    score >= 80 ? 'good' : score >= 60 ? 'fair' : 'poor'
+  const status: LocalMacroQuality['status'] = score >= 80 ? 'good' : score >= 60 ? 'fair' : 'poor'
 
   return {
     score: Math.max(0, score),
@@ -497,131 +291,82 @@ function assessSeriesQuality(entry: CatalogEntry, points: LocalMacroPoint[]): Lo
   }
 }
 
-async function readFileCached(relativePath: string): Promise<string> {
-  const fullPath = path.join(DATA_DIR, relativePath)
-  if (!fileCache.has(fullPath)) {
-    fileCache.set(fullPath, fs.readFile(fullPath, 'utf8'))
+async function readFileCached(filePath: string): Promise<string> {
+  if (!fileCache.has(filePath)) {
+    fileCache.set(filePath, fs.readFile(filePath, 'utf8'))
   }
-  return fileCache.get(fullPath)!
+  return fileCache.get(filePath)!
 }
 
-async function loadLongSeries(relativePath: string, key: string): Promise<LocalMacroPoint[]> {
-  const cacheKey = `long:${relativePath}:${key}`
-  if (!seriesCache.has(cacheKey)) {
-    seriesCache.set(
+async function loadPublishedSeriesMap(): Promise<Map<string, LocalMacroPoint[]>> {
+  const cacheKey = PUBLISHED_SERIES_FILE
+  if (!publishedSeriesCache.has(cacheKey)) {
+    publishedSeriesCache.set(
       cacheKey,
       (async () => {
-        const raw = await readFileCached(relativePath)
+        const raw = await readFileCached(PUBLISHED_SERIES_FILE)
         const lines = raw.split(/\r?\n/).filter(Boolean)
-        if (lines.length <= 1) return []
-
-        const points: LocalMacroPoint[] = []
-        for (const line of lines.slice(1)) {
-          const [date, uniqueId, value] = splitCsvLine(line)
-          if (uniqueId !== key || !date) continue
-          const numeric = Number(value)
-          if (!Number.isFinite(numeric)) continue
-          points.push({ date, value: numeric })
-        }
-
-        return points.sort((left, right) => left.date.localeCompare(right.date))
-      })()
-    )
-  }
-
-  return seriesCache.get(cacheKey)!
-}
-
-async function loadWideSeries(relativePath: string, column: string): Promise<LocalMacroPoint[]> {
-  const cacheKey = `wide:${relativePath}:${column}`
-  if (!seriesCache.has(cacheKey)) {
-    seriesCache.set(
-      cacheKey,
-      (async () => {
-        const raw = await readFileCached(relativePath)
-        const lines = raw.split(/\r?\n/).filter(Boolean)
-        if (lines.length <= 1) return []
+        if (lines.length <= 1) return new Map<string, LocalMacroPoint[]>()
 
         const headers = splitCsvLine(lines[0])
         const dateIndex = headers.indexOf('date')
-        const valueIndex = headers.indexOf(column)
-        if (dateIndex === -1 || valueIndex === -1) return []
+        const codeIndex = headers.indexOf('indicatorCode')
+        const valueIndex = headers.indexOf('value')
+        if (dateIndex === -1 || codeIndex === -1 || valueIndex === -1) {
+          return new Map<string, LocalMacroPoint[]>()
+        }
 
-        const points: LocalMacroPoint[] = []
+        const grouped = new Map<string, LocalMacroPoint[]>()
         for (const line of lines.slice(1)) {
           const cells = splitCsvLine(line)
           const date = cells[dateIndex]
+          const code = cells[codeIndex]
           const rawValue = cells[valueIndex]
-          if (!date || !rawValue || !rawValue.trim()) continue
+          if (!date || !code || !rawValue || !rawValue.trim()) continue
 
           const numeric = Number(rawValue)
           if (!Number.isFinite(numeric)) continue
-          points.push({ date, value: numeric })
+
+          const bucket = grouped.get(code) ?? []
+          bucket.push({ date, value: numeric })
+          grouped.set(code, bucket)
         }
 
-        return points.sort((left, right) => left.date.localeCompare(right.date))
+        for (const [code, points] of grouped.entries()) {
+          points.sort((left, right) => left.date.localeCompare(right.date))
+          grouped.set(code, points)
+        }
+
+        return grouped
       })()
     )
   }
 
-  return seriesCache.get(cacheKey)!
+  return publishedSeriesCache.get(cacheKey)!
 }
 
-async function loadSeriesFromSource(
-  source: IndicatorSource,
-  frequency: LocalMacroIndicator['frequency']
-): Promise<LocalMacroPoint[]> {
-  const rawPoints =
-    source.type === 'long'
-      ? await loadLongSeries(source.file, source.key)
-      : await loadWideSeries(source.file, source.column)
-
-  const normalized = normalizeSeries(rawPoints, frequency)
-  const gapFilled = fillShortGaps(normalized, frequency)
+async function loadSeries(entry: MacroCatalogEntry): Promise<LocalMacroPoint[]> {
+  const grouped = await loadPublishedSeriesMap()
+  const points = grouped.get(entry.code) ?? []
+  const normalized = normalizeSeries(points, entry.frequency)
+  const gapFilled = fillShortGaps(normalized, entry.frequency)
   return smoothIsolatedSpikes(gapFilled)
-}
-
-function getSeriesFreshness(points: LocalMacroPoint[]): number {
-  if (!points.length) return -1
-  return new Date(points[points.length - 1].date).getTime()
-}
-
-async function loadSeries(entry: CatalogEntry): Promise<LocalMacroPoint[]> {
-  const candidates = await Promise.all(
-    [entry.sourceConfig, ...(entry.alternateSources ?? [])].map(async (source) => ({
-      source,
-      points: await loadSeriesFromSource(source, entry.frequency),
-    }))
-  )
-
-  candidates.sort((left, right) => {
-    const freshnessGap = getSeriesFreshness(right.points) - getSeriesFreshness(left.points)
-    if (freshnessGap !== 0) return freshnessGap
-    return right.points.length - left.points.length
-  })
-
-  return candidates[0]?.points ?? []
 }
 
 export async function inspectLocalMacroDataset() {
   const files = await fs.readdir(DATA_DIR)
-  const chinaDir = await fs.readdir(path.join(DATA_DIR, 'china_macro'))
-  const usDir = await fs.readdir(path.join(DATA_DIR, 'us_macro'))
-
-  return {
-    rootFiles: files,
-    chinaFiles: chinaDir,
-    usFiles: usDir,
-  }
+  return { files }
 }
 
 export function getLocalMacroIndicators(category?: string): LocalMacroIndicator[] {
   const normalized = category ? CATEGORY_ALIASES[category] ?? null : null
 
-  return CATALOG
+  return MACRO_CATALOG
     .filter((entry) => !normalized || entry.category === normalized)
     .map((entry) => ({
       id: entry.id,
+      createdAt: '1970-01-01T00:00:00.000Z',
+      updatedAt: '1970-01-01T00:00:00.000Z',
       code: entry.code,
       name: entry.name,
       category: entry.category,
@@ -641,7 +386,7 @@ export async function getLocalMacroData(
 
   return Promise.all(
     uniqueCodes.map(async (code) => {
-      const entry = CATALOG.find((item) => item.code === code)
+      const entry = MACRO_CATALOG.find((item) => item.code === code)
       if (!entry) {
         return { indicatorCode: code, data: [] as LocalMacroPoint[] }
       }
@@ -659,11 +404,11 @@ export async function getLocalMacroData(
 }
 
 export async function getLocalMacroLatest(codes?: string[]): Promise<LocalMacroLatest[]> {
-  const selectedCodes = codes?.length ? codes : CATALOG.map((item) => item.code)
+  const selectedCodes = codes?.length ? codes : MACRO_CATALOG.map((item) => item.code)
   const grouped = await getLocalMacroData(selectedCodes, { limit: 24 })
 
   return grouped.map((group) => {
-    const entry = CATALOG.find((item) => item.code === group.indicatorCode)
+    const entry = MACRO_CATALOG.find((item) => item.code === group.indicatorCode)
     const latest = group.data[group.data.length - 1]
     const previous = group.data[group.data.length - 2]
 

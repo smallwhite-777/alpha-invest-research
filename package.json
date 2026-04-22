@@ -9,6 +9,7 @@
     "build:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "macro:rebuild-data": "tsx scripts/rebuild-macro-data.ts",
     "import:wsj": "tsx scripts/import-wsj-events.ts",
     "read:wsj": "tsx scripts/read-wsj-and-save.ts",
     "postinstall": "prisma generate"
@@ -35,6 +36,7 @@
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1",
     "shadcn": "^4.0.2",
     "swr": "^2.4.1",
     "tailwind-merge": "^3.5.0",
