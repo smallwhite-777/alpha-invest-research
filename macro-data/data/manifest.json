@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-22T07:35:05.303Z",
+  "generatedAt": "2026-04-22T08:32:21.597Z",
   "upstreamDir": "D:\\投研web 3\\投研网站 3\\Knowledgebase\\timesfm_deploy\\data",
   "totalIndicators": 18,
-  "totalRows": 21325,
+  "totalRows": 17314,
   "latestDates": {
     "CN_CPI_NT_YOY": "2026-03-31",
     "CN_PPI_YOY": "2026-03-31",
@@ -12,8 +12,8 @@
     "GDP_CHN_YOY": "2026-03-31",
     "IP_CHN_YOY": "2025-12-31",
     "RS_CHN_YOY": "2026-03-31",
-    "REPO7D_CHN": "2025-12-31",
-    "TREASURY10Y_CHN": "2025-12-31",
+    "REPO7D_CHN": "2026-04-30",
+    "TREASURY10Y_CHN": "2026-04-30",
     "US_DFF_M": "2026-04-30",
     "US_DGS10_M": "2026-04-30",
     "US_DGS2_M": "2026-04-30",

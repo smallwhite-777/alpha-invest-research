@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T07:31:38.967438+00:00",
+  "generatedAt": "2026-04-22T08:22:54.733516+00:00",
   "upstreamDataDir": "D:\\投研web 3\\投研网站 3\\Knowledgebase\\timesfm_deploy\\data",
   "us": {
     "success": true,
@@ -36,7 +36,9 @@
   },
   "china": {
     "success": true,
-    "monthly_rows": 18343,
+    "monthly_rows": 18644,
+    "daily_rows": 91880,
+    "monthly_from_daily_rows": 18712,
     "joint_rows": 4743,
     "latest_dates": {
       "CN_CPI_NT_YOY": "2026-03-31",
@@ -45,7 +47,9 @@
       "GDP_CHN_YOY": "2026-01-31",
       "CN_M1_YOY": "2026-03-31",
       "CN_M2_YOY": "2026-03-31",
-      "RS_CHN_YOY": "2026-03-31"
+      "RS_CHN_YOY": "2026-03-31",
+      "REPO7D_CHN": "2026-04-22",
+      "TREASURY10Y_CHN": "2026-04-21"
     },
     "failures": [
       "IP_CHN_YOY"

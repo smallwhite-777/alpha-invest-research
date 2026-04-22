@@ -5,6 +5,7 @@ import ssl
 import sys
 import time
 import urllib.request
+from datetime import date, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -15,6 +16,11 @@ try:
     import akshare as ak
 except ImportError:
     ak = None
+
+try:
+    import tushare as ts
+except ImportError:
+    ts = None
 
 os.environ["REQUESTS_CA_BUNDLE"] = ""
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -70,6 +76,8 @@ MONTHLY_MANAGED_IDS = {
     "GDP_CHN_YOY",
     "IP_CHN_YOY",
     "RS_CHN_YOY",
+    "REPO7D_CHN",
+    "TREASURY10Y_CHN",
 }
 
 JOINT_MANAGED_IDS = {
@@ -79,6 +87,11 @@ JOINT_MANAGED_IDS = {
     "CN_M1_YOY",
 }
 
+DAILY_MANAGED_IDS = {
+    "REPO7D_CHN",
+    "TREASURY10Y_CHN",
+}
+
 
 def log(message: str) -> None:
     print(message, flush=True)
@@ -86,10 +99,18 @@ def log(message: str) -> None:
 
 def fetch_fred_series(series_id: str) -> pd.DataFrame:
     url = f"{FRED_BASE}?id={series_id}"
-    for attempt in range(3):
+    session = requests.Session()
+    session.verify = False
+
+    for attempt in range(5):
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
-                csv_text = response.read().decode("utf-8")
+            if attempt < 3:
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    csv_text = response.read().decode("utf-8")
+            else:
+                response = session.get(url, timeout=30)
+                response.raise_for_status()
+                csv_text = response.text
             df = pd.read_csv(StringIO(csv_text))
             date_col = "observation_date" if "observation_date" in df.columns else df.columns[0]
             value_col = [column for column in df.columns if column != date_col][0]
@@ -99,7 +120,7 @@ def fetch_fred_series(series_id: str) -> pd.DataFrame:
             df = df.dropna(subset=[series_id]).sort_values("date").reset_index(drop=True)
             return df
         except Exception:
-            if attempt == 2:
+            if attempt == 4:
                 raise
             time.sleep(1.5 * (attempt + 1))
     raise RuntimeError(f"Failed to fetch {series_id}")
@@ -246,6 +267,108 @@ def normalize_long(series_name: str, df: pd.DataFrame) -> pd.DataFrame:
     return result[["date", "unique_id", "value"]]
 
 
+def normalize_daily_long(series_name: str, df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy()
+    result["date"] = pd.to_datetime(result["date"]).dt.normalize()
+    result = result.dropna(subset=["value"]).sort_values("date")
+    result["unique_id"] = series_name
+    return result[["date", "unique_id", "value"]]
+
+
+def with_retry(name: str, loader, attempts: int = 3, delay: float = 1.5):
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            return loader()
+        except Exception as error:
+            last_error = error
+            if attempt == attempts - 1:
+                raise
+            log(f"  retry {attempt + 2}/{attempts} for {name}: {error}")
+            time.sleep(delay * (attempt + 1))
+    raise last_error
+
+
+def load_existing_series(file_path: Path, series_id: str) -> pd.DataFrame | None:
+    if not file_path.exists():
+        return None
+    df = pd.read_csv(file_path)
+    if "unique_id" not in df.columns:
+        return None
+    subset = df[df["unique_id"] == series_id].copy()
+    if subset.empty:
+        return None
+    subset["date"] = pd.to_datetime(subset["date"])
+    return subset[["date", "unique_id", "value"]]
+
+
+def month_end_from_daily(frame: pd.DataFrame) -> pd.DataFrame:
+    monthly = frame.copy()
+    monthly["date"] = pd.to_datetime(monthly["date"])
+    monthly["month"] = monthly["date"].dt.to_period("M")
+    monthly = monthly.groupby(["unique_id", "month"], as_index=False).last()
+    monthly["date"] = monthly["month"].dt.to_timestamp("M")
+    return monthly[["date", "unique_id", "value"]]
+
+
+def fetch_repo7d_from_akshare() -> pd.DataFrame:
+    repo = with_retry("repo_rate_query", lambda: ak.repo_rate_query())
+    repo["date"] = pd.to_datetime(repo["date"])
+    repo["value"] = pd.to_numeric(repo["FR007"], errors="coerce")
+    return normalize_daily_long("REPO7D_CHN", repo[["date", "value"]])
+
+
+def fetch_repo7d_from_tushare() -> pd.DataFrame:
+    if ts is None:
+        raise RuntimeError("tushare is not installed")
+
+    token = os.environ.get("TUSHARE_TOKEN")
+    if not token:
+        raise RuntimeError("TUSHARE_TOKEN is not set")
+
+    pro = ts.pro_api(token)
+    start = "20050101"
+    end = pd.Timestamp.today().strftime("%Y%m%d")
+    repo = with_retry("tushare repo", lambda: pro.repo_daily(trade_date="", start_date=start, end_date=end), attempts=2)
+    repo["date"] = pd.to_datetime(repo["trade_date"], format="%Y%m%d")
+    candidate_columns = [column for column in repo.columns if "7" in column.lower() and "rate" in column.lower()]
+    if not candidate_columns:
+      candidate_columns = [column for column in repo.columns if "repo" in column.lower() and "rate" in column.lower()]
+    if not candidate_columns:
+        raise RuntimeError(f"Could not find repo rate column in tushare repo_daily columns: {repo.columns.tolist()}")
+    repo["value"] = pd.to_numeric(repo[candidate_columns[0]], errors="coerce")
+    return normalize_daily_long("REPO7D_CHN", repo[["date", "value"]])
+
+
+def fetch_treasury10y_from_akshare() -> pd.DataFrame:
+    end = date.today()
+    start = date(2005, 1, 1)
+    frames: list[pd.DataFrame] = []
+    chunk_start = start
+
+    while chunk_start <= end:
+        chunk_end = min(chunk_start + timedelta(days=360), end)
+        start_text = chunk_start.strftime("%Y%m%d")
+        end_text = chunk_end.strftime("%Y%m%d")
+        log(f"  loading bond_china_yield {start_text}-{end_text}")
+        chunk = with_retry(
+            f"bond_china_yield {start_text}-{end_text}",
+            lambda s=start_text, e=end_text: ak.bond_china_yield(start_date=s, end_date=e),
+            attempts=3,
+            delay=1,
+        )
+        frames.append(chunk)
+        chunk_start = chunk_end + timedelta(days=1)
+
+    merged = pd.concat(frames, ignore_index=True)
+    merged = merged[merged["曲线名称"] == "中债国债收益率曲线"].copy()
+    merged["date"] = pd.to_datetime(merged["日期"])
+    merged["value"] = pd.to_numeric(merged["10年"], errors="coerce")
+    merged = merged.dropna(subset=["value"])
+    merged = merged.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+    return normalize_daily_long("TREASURY10Y_CHN", merged[["date", "value"]])
+
+
 def fetch_china_series_from_akshare() -> dict:
     if ak is None:
         raise RuntimeError("akshare is not installed")
@@ -253,10 +376,17 @@ def fetch_china_series_from_akshare() -> dict:
     series_frames: dict[str, pd.DataFrame] = {}
     failures: list[str] = []
 
-    def capture(series_id: str, loader):
+    def capture(series_id: str, loader, fallback_loader=None):
         try:
             series_frames[series_id] = loader()
         except Exception as error:
+            if fallback_loader is not None:
+                try:
+                    log(f"  ! {series_id} primary failed, trying fallback: {error}")
+                    series_frames[series_id] = fallback_loader()
+                    return
+                except Exception as fallback_error:
+                    error = fallback_error
             failures.append(series_id)
             log(f"  ! {series_id} failed: {error}")
 
@@ -270,7 +400,7 @@ def fetch_china_series_from_akshare() -> dict:
                 value=pd.to_numeric(cpi["nation_yoy"], errors="coerce"),
             )
         )(
-            ak.macro_china_cpi().set_axis([
+            with_retry("macro_china_cpi", lambda: ak.macro_china_cpi()).set_axis([
                 "date_text",
                 "nation_level",
                 "nation_yoy",
@@ -298,7 +428,7 @@ def fetch_china_series_from_akshare() -> dict:
                 value=pd.to_numeric(ppi["yoy"], errors="coerce"),
             )
         )(
-            ak.macro_china_ppi().set_axis(["date_text", "level", "yoy", "cum"], axis=1)
+            with_retry("macro_china_ppi", lambda: ak.macro_china_ppi()).set_axis(["date_text", "level", "yoy", "cum"], axis=1)
         )
     ))
 
@@ -306,7 +436,7 @@ def fetch_china_series_from_akshare() -> dict:
     capture("PMI_CHN", lambda: (
         lambda pmi: normalize_long("PMI_CHN", pmi[["date", "value"]])
     )(
-        ak.macro_china_pmi().assign(
+        with_retry("macro_china_pmi", lambda: ak.macro_china_pmi()).assign(
             date=lambda frame: frame.iloc[:, 0].apply(parse_china_date),
             value=lambda frame: pd.to_numeric(frame.iloc[:, 1], errors="coerce"),
         )
@@ -314,7 +444,7 @@ def fetch_china_series_from_akshare() -> dict:
 
     log("[CN] Fetching GDP")
     def load_gdp():
-        gdp = ak.macro_china_gdp()
+        gdp = with_retry("macro_china_gdp", lambda: ak.macro_china_gdp())
         date_column = gdp.columns[0]
         yoy_column = [column for column in gdp.columns if "同比" in str(column) and "国内生产总值" in str(column)][0]
         gdp["date"] = gdp[date_column].apply(parse_china_date)
@@ -328,7 +458,7 @@ def fetch_china_series_from_akshare() -> dict:
 
     log("[CN] Fetching money supply")
     def load_money():
-        money = ak.macro_china_money_supply()
+        money = with_retry("macro_china_money_supply", lambda: ak.macro_china_money_supply())
         money["date"] = money.iloc[:, 0].apply(parse_china_date)
         m1_column = next(column for column in money.columns if "M1" in str(column) and "同比" in str(column))
         m2_column = next(column for column in money.columns if "M2" in str(column) and "同比" in str(column))
@@ -349,7 +479,7 @@ def fetch_china_series_from_akshare() -> dict:
     capture("IP_CHN_YOY", lambda: (
         lambda ip: normalize_long("IP_CHN_YOY", ip[["date", "value"]])
     )(
-        ak.macro_china_industrial_production_yoy().assign(
+        with_retry("macro_china_industrial_production_yoy", lambda: ak.macro_china_industrial_production_yoy()).assign(
             date=lambda frame: frame.iloc[:, 0].apply(parse_china_date),
             value=lambda frame: pd.to_numeric(frame.iloc[:, 1], errors="coerce"),
         )
@@ -359,11 +489,17 @@ def fetch_china_series_from_akshare() -> dict:
     capture("RS_CHN_YOY", lambda: (
         lambda retail: normalize_long("RS_CHN_YOY", retail[["date", "value"]])
     )(
-        ak.macro_china_consumer_goods_retail().assign(
+        with_retry("macro_china_consumer_goods_retail", lambda: ak.macro_china_consumer_goods_retail()).assign(
             date=lambda frame: frame.iloc[:, 0].apply(parse_china_date),
             value=lambda frame: pd.to_numeric(frame.iloc[:, 2], errors="coerce"),
         )
     ))
+
+    log("[CN] Fetching repo 7d")
+    capture("REPO7D_CHN", fetch_repo7d_from_akshare, fallback_loader=fetch_repo7d_from_tushare if ts is not None else None)
+
+    log("[CN] Fetching treasury 10y")
+    capture("TREASURY10Y_CHN", fetch_treasury10y_from_akshare)
 
     return {
         "series": series_frames,
@@ -383,11 +519,9 @@ def merge_long_file(file_path: Path, managed_ids: set[str], updates: dict[str, p
     else:
         existing = pd.DataFrame(columns=["date", "unique_id", "value"])
 
-    refreshed_ids = {series_id for series_id in updates if series_id in managed_ids}
-    kept = existing[~existing["unique_id"].isin(refreshed_ids)].copy()
-    refreshed_frames = [frame for series_id, frame in updates.items() if series_id in refreshed_ids]
+    refreshed_frames = [frame for series_id, frame in updates.items() if series_id in managed_ids]
     refreshed = pd.concat(refreshed_frames, ignore_index=True) if refreshed_frames else pd.DataFrame(columns=["date", "unique_id", "value"])
-    merged = pd.concat([kept, refreshed], ignore_index=True)
+    merged = pd.concat([existing, refreshed], ignore_index=True)
     merged["date"] = pd.to_datetime(merged["date"])
     merged = merged.sort_values(["unique_id", "date"]).drop_duplicates(subset=["date", "unique_id"], keep="last")
     merged.to_csv(file_path, index=False, encoding="utf-8", date_format="%Y-%m-%d")
@@ -426,6 +560,20 @@ def refresh_china_macro() -> dict:
         MONTHLY_MANAGED_IDS,
         series_frames,
     )
+    daily_rows = merge_long_file(
+        UPSTREAM_CHINA_DIR / "china_macro_daily.csv",
+        DAILY_MANAGED_IDS,
+        {series_id: frame for series_id, frame in series_frames.items() if series_id in DAILY_MANAGED_IDS},
+    )
+    monthly_from_daily_rows = merge_long_file(
+        UPSTREAM_CHINA_DIR / "china_macro_monthly_clean.csv",
+        DAILY_MANAGED_IDS,
+        {series_id: frame for series_id, frame in month_end_from_daily(pd.concat([
+            series_frames[series_id] for series_id in DAILY_MANAGED_IDS if series_id in series_frames
+        ], ignore_index=True)).groupby("unique_id")}
+        if any(series_id in series_frames for series_id in DAILY_MANAGED_IDS)
+        else {},
+    )
     joint_rows = merge_long_file(
         UPSTREAM_DATA_DIR / "us_china_joint_chronos.csv",
         JOINT_MANAGED_IDS,
@@ -436,6 +584,8 @@ def refresh_china_macro() -> dict:
     return {
         "success": True,
         "monthly_rows": monthly_rows,
+        "daily_rows": daily_rows,
+        "monthly_from_daily_rows": monthly_from_daily_rows,
         "joint_rows": joint_rows,
         "latest_dates": result["latest_dates"],
         "failures": result.get("failures", []),
