@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getLocalEventDatabaseIntelligenceItems } from '@/lib/intelligence/event-database-import'
 import { getLocalWsjIntelligenceItems, WSJ_SOURCE_NAME } from '@/lib/intelligence/wsj-events-import'
 import { getIntelligenceFeedFromNewStore, hasNewIntelligenceStoreData } from '@/lib/intelligence/services/get-intelligence-feed'
 
@@ -167,6 +168,7 @@ export async function GET(request: NextRequest) {
     let fallbackItems = [...MOCK_INTELLIGENCE]
 
     try {
+      const localEventDbItems = await getLocalEventDatabaseIntelligenceItems()
       const localWsjItems = await getLocalWsjIntelligenceItems({
         latestOnly: false,
         maxFiles: 5,
@@ -175,11 +177,12 @@ export async function GET(request: NextRequest) {
       fallbackItems = source === WSJ_SOURCE_NAME
         ? localWsjItems
         : sortByCreatedAtDesc([
+            ...localEventDbItems,
             ...localWsjItems,
             ...MOCK_INTELLIGENCE,
           ])
     } catch (localError) {
-      console.warn('Local WSJ fallback unavailable:', (localError as Error).message)
+      console.warn('Local intelligence fallback unavailable:', (localError as Error).message)
     }
 
     const filtered = dedupeIntelligenceItems(

@@ -13,6 +13,7 @@
     "macro:refresh-upstream": "python scripts/refresh_macro_upstream.py",
     "macro:update": "tsx scripts/update-macro-data.ts",
     "import:wsj": "tsx scripts/import-wsj-events.ts",
+    "import:event-db": "tsx scripts/import-event-db.ts",
     "read:wsj": "tsx scripts/read-wsj-and-save.ts",
     "postinstall": "prisma generate"
   },

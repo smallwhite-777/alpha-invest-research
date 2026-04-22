@@ -26,6 +26,32 @@ export async function saveNormalizedSnapshot(snapshotPath: string, documents: No
   await fs.writeFile(snapshotPath, JSON.stringify(documents, null, 2), 'utf8')
 }
 
+async function sleep(ms: number) {
+  await new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function upsertWithRetries(document: NormalizedIntelligenceDocument, dryRun: boolean, jobId?: string) {
+  const maxAttempts = dryRun ? 1 : 4
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await upsertNormalizedDocument(document, dryRun, jobId)
+    } catch (error) {
+      lastError = error
+      const message = error instanceof Error ? error.message : String(error)
+      const retryable = /(ECONNRESET|ETIMEDOUT|DriverAdapterError|fetch failed|pipeline failed)/i.test(message)
+      if (!retryable || attempt === maxAttempts) {
+        throw error
+      }
+
+      await sleep(500 * attempt)
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unknown upsert failure')
+}
+
 export async function ingestSource(options: {
   connector: IntelligenceConnector
   normalizer: IntelligenceNormalizer
@@ -64,7 +90,7 @@ export async function ingestSource(options: {
   normalizedCount = normalizedDocuments.length
 
   for (const document of normalizedDocuments) {
-    const result = await upsertNormalizedDocument(document, Boolean(options.dryRun), jobId)
+    const result = await upsertWithRetries(document, Boolean(options.dryRun), jobId)
     if (result.skipped) skipped += 1
     else imported += 1
   }
