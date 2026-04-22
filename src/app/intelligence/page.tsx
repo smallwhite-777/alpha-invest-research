@@ -33,13 +33,17 @@ const CATEGORY_ICONS: Record<string, typeof FileText> = {
   NEWS: Newspaper,
 }
 
+type TimeFilter = '7d' | 'all'
+
 function IntelligenceContent() {
   const searchParams = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
-  const [selectedRecentDays, setSelectedRecentDays] = useState<number | null>(7)
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('7d')
   const [sectorExpanded, setSectorExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
+
+  const recentDays = timeFilter === '7d' ? 7 : undefined
 
   const handleCategoryClick = (category: string) => {
     setSelectedCategory(selectedCategory === category ? null : category)
@@ -108,10 +112,10 @@ function IntelligenceContent() {
           <p className="text-[10px] uppercase tracking-widest text-secondary mb-2 px-3">时间</p>
           <nav className="space-y-0.5">
             <button
-              onClick={() => setSelectedRecentDays(7)}
+              onClick={() => setTimeFilter('7d')}
               className={cn(
                 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors',
-                selectedRecentDays === 7
+                timeFilter === '7d'
                   ? 'bg-surface-high text-foreground font-medium'
                   : 'text-secondary hover:bg-surface-high hover:text-foreground'
               )}
@@ -119,10 +123,10 @@ function IntelligenceContent() {
               <span>近7天</span>
             </button>
             <button
-              onClick={() => setSelectedRecentDays(null)}
+              onClick={() => setTimeFilter('all')}
               className={cn(
                 'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors',
-                selectedRecentDays === null
+                timeFilter === 'all'
                   ? 'bg-surface-high text-foreground font-medium'
                   : 'text-secondary hover:bg-surface-high hover:text-foreground'
               )}
@@ -187,10 +191,10 @@ function IntelligenceContent() {
 
           <div className="mb-6 flex items-center gap-2">
             <button
-              onClick={() => setSelectedRecentDays(7)}
+              onClick={() => setTimeFilter('7d')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                selectedRecentDays === 7
+                timeFilter === '7d'
                   ? 'bg-surface-high text-foreground font-medium'
                   : 'bg-surface-low text-secondary hover:bg-surface-high hover:text-foreground'
               )}
@@ -198,10 +202,10 @@ function IntelligenceContent() {
               近7天
             </button>
             <button
-              onClick={() => setSelectedRecentDays(null)}
+              onClick={() => setTimeFilter('all')}
               className={cn(
                 'px-3 py-1.5 text-xs transition-colors',
-                selectedRecentDays === null
+                timeFilter === 'all'
                   ? 'bg-surface-high text-foreground font-medium'
                   : 'bg-surface-low text-secondary hover:bg-surface-high hover:text-foreground'
               )}
@@ -210,7 +214,7 @@ function IntelligenceContent() {
             </button>
           </div>
 
-          {(selectedCategory || selectedSector || selectedRecentDays) && (
+          {(selectedCategory || selectedSector || timeFilter === '7d') && (
             <div className="mb-6 flex items-center gap-2 flex-wrap">
               {selectedCategory && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-high text-foreground text-xs">
@@ -228,10 +232,10 @@ function IntelligenceContent() {
                   </button>
                 </span>
               )}
-              {selectedRecentDays && (
+              {timeFilter === '7d' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-high text-foreground text-xs">
-                  近{selectedRecentDays}天
-                  <button onClick={() => setSelectedRecentDays(null)}>
+                  近7天
+                  <button onClick={() => setTimeFilter('all')}>
                     <X className="h-3 w-3 text-secondary hover:text-foreground" />
                   </button>
                 </span>
@@ -240,7 +244,7 @@ function IntelligenceContent() {
                 onClick={() => {
                   setSelectedCategory(null)
                   setSelectedSector(null)
-                  setSelectedRecentDays(null)
+                  setTimeFilter('all')
                 }}
                 className="text-xs text-secondary hover:text-foreground transition-colors"
               >
@@ -253,7 +257,7 @@ function IntelligenceContent() {
             category={selectedCategory || undefined}
             sector={selectedSector || undefined}
             search={searchQuery || undefined}
-            recentDays={selectedRecentDays || undefined}
+            recentDays={recentDays}
           />
         </div>
       </main>
