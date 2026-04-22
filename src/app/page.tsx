@@ -1,18 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { useMemo, useState } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { cn } from '@/lib/utils'
 import type { MacroIndicator } from '@/types/macro'
-import { ClientErrorBoundary } from '@/components/ui/ClientErrorBoundary'
-
-const ReactECharts = dynamic(() => import('echarts-for-react'), {
-  ssr: false,
-  loading: () => null,
-})
+import { SafeEChart } from '@/components/ui/SafeEChart'
 
 interface MacroSeriesGroup {
   indicatorCode: string
@@ -55,14 +49,34 @@ const HOME_CHART_PAIRS = [
   { codeX: 'US_DFF_M', codeY: 'US_DGS10_M', title: '美联储政策利率 vs 美债长端利率' },
 ]
 
+const REQUEST_TIMEOUT_MS = 15000
+const swrOptions = {
+  revalidateOnFocus: false,
+  revalidateIfStale: false,
+  shouldRetryOnError: false,
+  errorRetryCount: 1,
+  dedupingInterval: 300000,
+}
+
+async function fetchWithTimeout(url: string) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    return await fetch(url, { signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 const jsonFetcher = async <T,>(url: string): Promise<T> => {
-  const res = await fetch(url)
+  const res = await fetchWithTimeout(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 const pythonFetcher = async <T,>(url: string): Promise<T> => {
-  const res = await fetch(`${PYTHON_BACKEND}${url}`)
+  const res = await fetchWithTimeout(`${PYTHON_BACKEND}${url}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -83,10 +97,20 @@ function pearsonCorrelation(valuesX: number[], valuesY: number[]): number {
 }
 
 function normalizeValues(values: number[]) {
+  if (values.length === 0) return []
   const min = Math.min(...values)
   const max = Math.max(...values)
   const range = max - min || 1
   return values.map((value) => ((value - min) / range) * 100)
+}
+
+function sanitizeSeries(data: Array<{ date: string; value: number }>) {
+  return data.filter(
+    (item) =>
+      Boolean(item?.date) &&
+      typeof item.value === 'number' &&
+      Number.isFinite(item.value)
+  )
 }
 
 function getLatestChange(points: Array<{ date: string; value: number }>) {
@@ -128,6 +152,7 @@ function alignSeries(
         y: itemY.value,
       }
     })
+    .filter((item) => Number.isFinite(item.x) && Number.isFinite(item.y))
     .sort((left, right) => left.date.localeCompare(right.date))
 
   return points.slice(-36)
@@ -135,10 +160,7 @@ function alignSeries(
 
 export default function Dashboard() {
   const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const currentTime = useMemo(() => Date.now(), [])
-
-  useEffect(() => setMounted(true), [])
+  const [currentTime] = useState(() => Date.now())
 
   const isDark = resolvedTheme === 'dark'
   const indicatorCodes = useMemo(
@@ -155,22 +177,22 @@ export default function Dashboard() {
   const { data: indicatorList = [], isLoading: macroLoading } = useSWR<MacroIndicator[]>(
     '/api/macro/indicators',
     jsonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
   const { data: macroGroups = [] } = useSWR<MacroSeriesGroup[]>(
     `/api/macro/data?codes=${indicatorCodes}&limit=240`,
     jsonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
   const { data: sectorData, isLoading: sectorLoading } = useSWR<{ success: boolean; sectors: Sector[] }>(
     '/api/market/sectors',
     pythonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
   const { data: insightsData, isLoading: insightsLoading } = useSWR<{ items: Insight[] }>(
     '/api/intelligence?limit=6',
     jsonFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
 
   const groupMap = useMemo(
@@ -180,7 +202,7 @@ export default function Dashboard() {
 
   const macroCards = HOME_MACRO_ITEMS.map((item) => {
     const indicator = indicatorList.find((entry) => entry.code === item.code)
-    const points = groupMap.get(item.code) || []
+    const points = sanitizeSeries(groupMap.get(item.code) || [])
     const latest = points.at(-1)
 
     return {
@@ -191,8 +213,6 @@ export default function Dashboard() {
       change: getLatestChange(points),
     }
   })
-
-  if (!mounted) return null
 
   const sectors = sectorData?.success ? sectorData.sectors : []
   const insights = insightsData?.items || []
@@ -298,12 +318,15 @@ export default function Dashboard() {
             {HOME_CHART_PAIRS.map((pair) => {
               const indicatorX = indicatorList.find((item) => item.code === pair.codeX)
               const indicatorY = indicatorList.find((item) => item.code === pair.codeY)
-              const aligned = alignSeries(groupMap.get(pair.codeX) || [], groupMap.get(pair.codeY) || [])
+              const aligned = alignSeries(
+                sanitizeSeries(groupMap.get(pair.codeX) || []),
+                sanitizeSeries(groupMap.get(pair.codeY) || [])
+              )
               const valuesX = aligned.map((item) => item.x)
               const valuesY = aligned.map((item) => item.y)
               const dates = aligned.map((item) => item.date.slice(0, 7))
               const correlation = aligned.length >= 3 ? pearsonCorrelation(valuesX, valuesY) : 0
-
+              const hasChartData = aligned.length >= 3
               const option = {
                 grid: { left: 4, right: 4, top: 8, bottom: 20 },
                 tooltip: {
@@ -330,7 +353,7 @@ export default function Dashboard() {
                   {
                     name: indicatorX?.name || pair.codeX,
                     type: 'line' as const,
-                    data: valuesX.length ? normalizeValues(valuesX) : [],
+                    data: hasChartData ? normalizeValues(valuesX) : [],
                     smooth: false,
                     symbol: 'none',
                     lineStyle: { color: isDark ? '#6fa888' : '#001629', width: 1.5 },
@@ -339,7 +362,7 @@ export default function Dashboard() {
                   {
                     name: indicatorY?.name || pair.codeY,
                     type: 'line' as const,
-                    data: valuesY.length ? normalizeValues(valuesY) : [],
+                    data: hasChartData ? normalizeValues(valuesY) : [],
                     smooth: false,
                     symbol: 'none',
                     lineStyle: { color: isDark ? '#c65d65' : '#58040f', width: 1.5 },
@@ -363,9 +386,23 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div style={{ height: 130 }}>
-                    <ClientErrorBoundary>
-                      <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
-                    </ClientErrorBoundary>
+                    {hasChartData ? (
+                      <SafeEChart
+                        chartKey={`${pair.codeX}-${pair.codeY}-${dates.at(-1) || 'empty'}`}
+                        option={option}
+                        height="100%"
+                        width="100%"
+                        fallback={
+                          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                            图表渲染失败
+                          </div>
+                        }
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                        可用样本不足，暂不绘图
+                      </div>
+                    )}
                   </div>
                 </div>
               )

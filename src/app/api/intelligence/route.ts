@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getLocalWsjIntelligenceItems, WSJ_SOURCE_NAME } from '@/lib/intelligence/wsj-events-import'
+import { getIntelligenceFeedFromNewStore, hasNewIntelligenceStoreData } from '@/lib/intelligence/services/get-intelligence-feed'
 
 // Mock data for when database is unavailable
 const MOCK_INTELLIGENCE = [
@@ -13,10 +15,32 @@ const MOCK_INTELLIGENCE = [
   { id: '8', title: '医药集采第十批即将启动，关注创新药标的', content: '第十批国家集采即将启动，涉及品种超50个。集采常态化背景下，创新药企业受影响较小，建议关注恒瑞医药等龙头。', summary: '集采常态化，聚焦创新药', category: 'POLICY_RUMOR', importance: 3, source: '政策跟踪', authorName: '研究员G', createdAt: '2026-03-20T13:00:00Z', updatedAt: '2026-03-20T13:00:00Z', tags: [{ tag: { name: '医药' } }, { tag: { name: '集采' } }], sectors: [{ sectorCode: 'SW_PHARMA', sectorName: '化学制药' }], stocks: [{ stockSymbol: '600276', stockName: '恒瑞医药' }] },
 ]
 
-function filterMockData(items: typeof MOCK_INTELLIGENCE, params: { category?: string | null; search?: string | null; sector?: string | null; importance?: string | null }) {
+type IntelligenceLikeItem = {
+  id: string
+  category: string
+  importance: number
+  source?: string | null
+  title: string
+  content: string
+  summary?: string | null
+  createdAt: string | Date
+  tags: Array<{ tag: { name: string } }>
+  sectors: Array<{ sectorCode: string }>
+}
+
+function normalizeFingerprint(value: string | null | undefined) {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[“”"'`’‘]/g, '')
+    .replace(/[，。；：、！!？?（）()\[\]\-—_]/g, '')
+    .replace(/\s+/g, '')
+}
+
+function filterMockData<T extends IntelligenceLikeItem>(items: T[], params: { category?: string | null; search?: string | null; sector?: string | null; importance?: string | null; source?: string | null }) {
   let filtered = [...items]
   if (params.category) filtered = filtered.filter(i => i.category === params.category)
   if (params.importance) filtered = filtered.filter(i => i.importance >= parseInt(params.importance!))
+  if (params.source) filtered = filtered.filter(i => i.source === params.source)
   if (params.search) {
     const q = params.search.toLowerCase()
     filtered = filtered.filter(i => i.title.toLowerCase().includes(q) || i.content.toLowerCase().includes(q) || i.tags.some(t => t.tag.name.toLowerCase().includes(q)))
@@ -25,59 +49,94 @@ function filterMockData(items: typeof MOCK_INTELLIGENCE, params: { category?: st
   return filtered
 }
 
+function filterByRecentDays<T extends { createdAt: string | Date }>(items: T[], recentDays?: string | null) {
+  if (!recentDays) return items
+  const days = parseInt(recentDays)
+  if (!Number.isFinite(days) || days <= 0) return items
+
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  return items.filter(item => new Date(item.createdAt) >= since)
+}
+
+function toSortableDate(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : value
+}
+
+function sortByCreatedAtDesc<T extends { createdAt: string | Date }>(items: T[]) {
+  return [...items].sort((left, right) => toSortableDate(right.createdAt).localeCompare(toSortableDate(left.createdAt)))
+}
+
+function dedupeIntelligenceItems<T extends IntelligenceLikeItem>(items: T[]) {
+  const deduped = new Map<string, T>()
+
+  for (const item of sortByCreatedAtDesc(items)) {
+    const fingerprint = `${item.source || ''}::${normalizeFingerprint(item.title)}::${normalizeFingerprint(item.summary)}`
+    if (!deduped.has(fingerprint)) {
+      deduped.set(fingerprint, item)
+    }
+  }
+
+  return Array.from(deduped.values())
+}
+
 // GET /api/intelligence - List intelligence with filters
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const category = searchParams.get('category')
   const sector = searchParams.get('sector')
   const importance = searchParams.get('importance')
+  const source = searchParams.get('source')
   const search = searchParams.get('search')
+  const recentDays = searchParams.get('recent_days')
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '20')
   const skip = (page - 1) * limit
 
   // Try database first, fallback to mock data
   try {
+    if (await hasNewIntelligenceStoreData()) {
+      const { items, total } = await getIntelligenceFeedFromNewStore({
+        category,
+        sector,
+        importance,
+        source,
+        search,
+        recentDays,
+        skip,
+        limit,
+      })
+
+      return NextResponse.json({
+        items: dedupeIntelligenceItems(items),
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
+      })
+    }
+
     const where: Record<string, unknown> = {}
-
-    if (category) {
-      where.category = category
-    }
-
-    if (importance) {
-      where.importance = parseInt(importance)
-    }
-
-    if (sector) {
-      where.sectors = {
-        some: { sectorCode: sector }
+    if (category) where.category = category
+    if (importance) where.importance = parseInt(importance)
+    if (source) where.source = source
+    if (recentDays) {
+      const days = parseInt(recentDays)
+      if (Number.isFinite(days) && days > 0) {
+        const since = new Date()
+        since.setDate(since.getDate() - days)
+        where.createdAt = { gte: since }
       }
     }
-
+    if (sector) where.sectors = { some: { sectorCode: sector } }
     if (search) {
       where.OR = [
         { title: { contains: search } },
         { content: { contains: search } },
         { summary: { contains: search } },
-        {
-          tags: {
-            some: {
-              tag: {
-                name: { contains: search }
-              }
-            }
-          }
-        },
-        {
-          stocks: {
-            some: {
-              OR: [
-                { stockSymbol: { contains: search } },
-                { stockName: { contains: search } }
-              ]
-            }
-          }
-        }
+        { tags: { some: { tag: { name: { contains: search } } } } },
+        { stocks: { some: { OR: [{ stockSymbol: { contains: search } }, { stockName: { contains: search } }] } } },
       ]
     }
 
@@ -97,7 +156,7 @@ export async function GET(request: NextRequest) {
     ])
 
     return NextResponse.json({
-      items,
+      items: dedupeIntelligenceItems(items as IntelligenceLikeItem[]),
       total,
       page,
       pageSize: limit,
@@ -105,7 +164,30 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.warn('Database unavailable, using mock data:', (error as Error).message)
-    const filtered = filterMockData(MOCK_INTELLIGENCE, { category, search, sector, importance })
+    let fallbackItems = [...MOCK_INTELLIGENCE]
+
+    try {
+      const localWsjItems = await getLocalWsjIntelligenceItems({
+        latestOnly: false,
+        maxFiles: 5,
+      })
+
+      fallbackItems = source === WSJ_SOURCE_NAME
+        ? localWsjItems
+        : sortByCreatedAtDesc([
+            ...localWsjItems,
+            ...MOCK_INTELLIGENCE,
+          ])
+    } catch (localError) {
+      console.warn('Local WSJ fallback unavailable:', (localError as Error).message)
+    }
+
+    const filtered = dedupeIntelligenceItems(
+      filterByRecentDays(
+        filterMockData(fallbackItems, { category, search, sector, importance, source }),
+        recentDays
+      )
+    )
     const paged = filtered.slice(skip, skip + limit)
     return NextResponse.json({
       items: paged,

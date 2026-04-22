@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, MoreHorizontal, ChevronRight, Database, BookOpen, CheckCircle2, Clock, XCircle, Loader } from 'lucide-react'
+import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, Database, CheckCircle2, Clock, XCircle, Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import Link from 'next/link'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 
 interface UploadedFile {
@@ -32,7 +31,7 @@ interface AnalysisResult {
   deepAnalysis?: {
     business?: { coreStrength: string; newNarrative: string }
     keyMetrics?: { metrics: string[]; trends: string }
-    valuationDeep?: { methods: string; assumptions: string; scenarios: any }
+    valuationDeep?: { methods: string; assumptions: string; scenarios: string | ValuationScenarios }
     monitoring?: { drivers: string[]; risks: string[]; triggers: string[] }
   }
   philosophyViews?: {
@@ -68,6 +67,403 @@ interface Conversation {
   title: string
   messages: Message[]
   timestamp: number
+  contextSummary?: string
+  contextState?: ConversationContextState
+}
+
+interface ValuationScenarios {
+  bull?: string
+  base?: string
+  bear?: string
+}
+
+const CLEAN_STOPWORDS = new Set([
+  '请', '帮我', '分析', '研究', '一下', '这个', '那个', '现在', '最近', '为什么', '怎么', '是否',
+  '情况', '影响', '表现', '变化', '走势', '公司', '企业', '行业', '市场', '数据', '指标', '问题',
+  '以及', '还有', '继续', '关于', '我们', '你们', '他们', '报告', '财报', '年报', '季度', '同比',
+])
+
+interface ConversationContextState {
+  primaryCompany?: string
+  stockCodes: string[]
+  timeRange?: string
+  comparisonTargets: string[]
+  topicKeywords: string[]
+  lastUserQuestion?: string
+  subjectChanged?: boolean
+  subjectChangeReason?: string
+  updatedAt: number
+}
+
+const MAX_STORED_CONVERSATIONS = 12
+const MAX_STORED_MESSAGES_PER_CONVERSATION = 30
+const MAX_STORED_MESSAGE_CONTENT = 12000
+const MAX_CHAT_HISTORY_MESSAGES = 12
+const MAX_CHAT_MESSAGE_LENGTH = 4000
+const MAX_RENDERED_MESSAGES = 40
+const MAX_CONTEXT_TURNS = 6
+const MAX_CONTEXT_SUMMARY_LENGTH = 1800
+const MAX_CONTEXT_KEYWORDS = 8
+const MAX_CONTEXT_COMPARISON_TARGETS = 4
+const STOPWORDS = new Set([
+  '请', '帮我', '分析', '研究', '一下', '这个', '那个', '现在', '最近', '为什么', '怎么', '是否',
+  '情况', '影响', '表现', '变化', '走势', '公司', '企业', '行业', '市场', '数据', '指标', '问题',
+  '以及', '还有', '继续', '关于', '我们', '你们', '他们', '报告', '财报', '年报', '季度', '同比',
+])
+
+function truncateText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength)}\n\n[内容过长，已截断以提升稳定性]`
+}
+
+function stripMarkdown(value: string) {
+  return value
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[#>*_\-\|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function summarizeMessageContent(value: string, maxLength: number) {
+  return truncateText(stripMarkdown(value), maxLength).replace(/\n+/g, ' ').trim()
+}
+
+function buildConversationSummary(messages: Message[]) {
+  const usableMessages = messages
+    .filter((message) => !message.isLoading && message.content)
+    .slice(-MAX_CONTEXT_TURNS)
+
+  if (usableMessages.length === 0) return ''
+
+  const summaryLines = usableMessages.map((message) => {
+    const roleLabel = message.role === 'user' ? '用户' : '助手'
+    const content = summarizeMessageContent(message.content || '', message.role === 'user' ? 180 : 240)
+    return `${roleLabel}: ${content}`
+  })
+
+  return truncateText(summaryLines.join('\n'), MAX_CONTEXT_SUMMARY_LENGTH)
+}
+
+function dedupeStrings(values: string[], limit: number) {
+  return Array.from(new Set(values.filter(Boolean))).slice(0, limit)
+}
+
+function extractStockCodes(text: string) {
+  return Array.from(text.matchAll(/\b(?:SH|SZ|HK)?(\d{5,6})\b/gi)).map((match) => match[1])
+}
+
+function extractCompanyCandidates(text: string) {
+  const matches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)/g) || []
+  return matches.map((item) => item.trim())
+}
+
+function extractTimeRange(text: string) {
+  const explicitRange = text.match(/(20\d{2}\s*[至到\-~]\s*20\d{2})/)
+  if (explicitRange) return explicitRange[1].replace(/\s+/g, '')
+
+  const years = Array.from(text.matchAll(/20\d{2}/g)).map((match) => match[0])
+  if (years.length >= 2) {
+    return `${years[0]}-${years[years.length - 1]}`
+  }
+
+  const relativeRange = text.match(/(近[一二三四五六七八九十\d]+年|过去[一二三四五六七八九十\d]+年|今年|去年|近半年|近一年|最近一季|最近一年)/)
+  return relativeRange?.[1]
+}
+
+function extractComparisonTargets(text: string) {
+  const targets = Array.from(text.matchAll(/和([\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)?)/g)).map((match) => match[1])
+  const comparisonLead = text.match(/对比([\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)?)/)
+  if (comparisonLead?.[1]) targets.push(comparisonLead[1])
+  return dedupeStrings(targets, MAX_CONTEXT_COMPARISON_TARGETS)
+}
+
+function extractTopicKeywords(text: string) {
+  const normalized = stripMarkdown(text).replace(/[^\u4e00-\u9fa5A-Za-z0-9\s]/g, ' ')
+  const candidates = normalized
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2 && item.length <= 16 && !STOPWORDS.has(item))
+
+  return dedupeStrings(candidates, MAX_CONTEXT_KEYWORDS)
+}
+
+function hasContextCarryoverReference(text: string) {
+  return /它|这家公司|该公司|刚才|上面|前面|刚提到|上一段|前一个|继续|展开说说/.test(text)
+}
+
+function detectSubjectSwitch(
+  previousState: ConversationContextState | undefined,
+  lastUserQuestion: string | undefined,
+  companyCandidates: string[],
+  topicKeywords: string[]
+) {
+  if (!previousState?.primaryCompany || !lastUserQuestion) {
+    return { subjectChanged: false, subjectChangeReason: undefined as string | undefined }
+  }
+
+  const explicitCompany = companyCandidates[0]
+  if (explicitCompany && explicitCompany !== previousState.primaryCompany && !hasContextCarryoverReference(lastUserQuestion)) {
+    return {
+      subjectChanged: true,
+      subjectChangeReason: `主体从 ${previousState.primaryCompany} 切换到 ${explicitCompany}`,
+    }
+  }
+
+  const strongTopicReset = /换个|切换到|另外看|再看一下|重新看|单独看/.test(lastUserQuestion)
+  if (strongTopicReset && topicKeywords.length > 0 && !hasContextCarryoverReference(lastUserQuestion)) {
+    return {
+      subjectChanged: true,
+      subjectChangeReason: '检测到用户主动切换分析主题',
+    }
+  }
+
+  return { subjectChanged: false, subjectChangeReason: undefined as string | undefined }
+}
+
+function mergeContextState(base?: ConversationContextState, patch?: Partial<ConversationContextState>): ConversationContextState | undefined {
+  if (!base && !patch) return undefined
+
+  return {
+    primaryCompany: patch?.primaryCompany || base?.primaryCompany,
+    stockCodes: dedupeStrings([...(base?.stockCodes || []), ...(patch?.stockCodes || [])], 4),
+    timeRange: patch?.timeRange || base?.timeRange,
+    comparisonTargets: dedupeStrings([...(base?.comparisonTargets || []), ...(patch?.comparisonTargets || [])], MAX_CONTEXT_COMPARISON_TARGETS),
+    topicKeywords: dedupeStrings([...(base?.topicKeywords || []), ...(patch?.topicKeywords || [])], MAX_CONTEXT_KEYWORDS),
+    lastUserQuestion: patch?.lastUserQuestion || base?.lastUserQuestion,
+    updatedAt: patch?.updatedAt || base?.updatedAt || Date.now(),
+  }
+}
+
+function buildStableConversationSummary(messages: Message[]) {
+  const usableMessages = messages
+    .filter((message) => !message.isLoading && message.content)
+    .slice(-MAX_CONTEXT_TURNS)
+
+  if (usableMessages.length === 0) return ''
+
+  return usableMessages
+    .map((message) => `${message.role === 'user' ? '用户' : '助手'}: ${summarizeMessageContent(message.content || '', message.role === 'user' ? 180 : 240)}`)
+    .join('\n')
+    .slice(0, MAX_CONTEXT_SUMMARY_LENGTH)
+}
+
+function extractStableCompanyCandidates(text: string) {
+  const matches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)/g) || []
+  return matches.map((item) => item.trim())
+}
+
+function extractStableTimeRange(text: string) {
+  const explicitRange = text.match(/(20\d{2}\s*[至到\-~]\s*20\d{2})/)
+  if (explicitRange) return explicitRange[1].replace(/\s+/g, '')
+
+  const years = Array.from(text.matchAll(/20\d{2}/g)).map((match) => match[0])
+  if (years.length >= 2) {
+    return `${years[0]}-${years[years.length - 1]}`
+  }
+
+  return text.match(/(近[一二三四五六七八九十\d]+年|过去[一二三四五六七八九十\d]+年|今年|去年|近半年|近一年|最近一季|最近一年)/)?.[1]
+}
+
+function extractStableComparisonTargets(text: string) {
+  const targets = Array.from(text.matchAll(/和([\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)?)/g)).map((match) => match[1])
+  const comparisonLead = text.match(/对比([\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)?)/)
+  if (comparisonLead?.[1]) targets.push(comparisonLead[1])
+  return dedupeStrings(targets, MAX_CONTEXT_COMPARISON_TARGETS)
+}
+
+function extractStableTopicKeywords(text: string) {
+  return dedupeStrings(
+    stripMarkdown(text)
+      .replace(/[^\u4e00-\u9fa5A-Za-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2 && item.length <= 16 && !CLEAN_STOPWORDS.has(item)),
+    MAX_CONTEXT_KEYWORDS
+  )
+}
+
+function hasStableContextCarryoverReference(text: string) {
+  return /它|这家公司|该公司|刚才|上面|前面|刚提到|上一段|前一个|继续|展开说说/.test(text)
+}
+
+function detectStableSubjectSwitch(
+  previousState: ConversationContextState | undefined,
+  lastUserQuestion: string | undefined,
+  companyCandidates: string[],
+  topicKeywords: string[]
+) {
+  if (!previousState?.primaryCompany || !lastUserQuestion) {
+    return { subjectChanged: false, subjectChangeReason: undefined as string | undefined }
+  }
+
+  const explicitCompany = companyCandidates[0]
+  if (explicitCompany && explicitCompany !== previousState.primaryCompany && !hasStableContextCarryoverReference(lastUserQuestion)) {
+    return {
+      subjectChanged: true,
+      subjectChangeReason: `主体从 ${previousState.primaryCompany} 切换到 ${explicitCompany}`,
+    }
+  }
+
+  if (/换个|切换到|另外看|再看一下|重新看|单独看/.test(lastUserQuestion) && topicKeywords.length > 0 && !hasStableContextCarryoverReference(lastUserQuestion)) {
+    return {
+      subjectChanged: true,
+      subjectChangeReason: '检测到用户主动切换分析主题',
+    }
+  }
+
+  return { subjectChanged: false, subjectChangeReason: undefined as string | undefined }
+}
+
+function buildStableConversationContextState(messages: Message[], previousState?: ConversationContextState): ConversationContextState | undefined {
+  const usableMessages = messages
+    .filter((message) => !message.isLoading && message.content)
+    .slice(-MAX_CHAT_HISTORY_MESSAGES)
+
+  if (usableMessages.length === 0 && !previousState) return undefined
+
+  const recentUserMessages = usableMessages.filter((message) => message.role === 'user')
+  const text = usableMessages.map((message) => message.content || '').join('\n')
+  const lastUserQuestion = recentUserMessages.at(-1)?.content
+  const companyCandidates = dedupeStrings([
+    ...(lastUserQuestion ? extractStableCompanyCandidates(lastUserQuestion) : []),
+    ...extractStableCompanyCandidates(text),
+  ], 4)
+  const topicKeywords = extractStableTopicKeywords(recentUserMessages.map((message) => message.content || '').join(' '))
+  const switchSignal = detectStableSubjectSwitch(previousState, lastUserQuestion, companyCandidates, topicKeywords)
+
+  const nextState = mergeContextState(previousState, {
+    primaryCompany: companyCandidates[0] || previousState?.primaryCompany,
+    stockCodes: extractStockCodes(text),
+    timeRange: extractStableTimeRange(lastUserQuestion || text),
+    comparisonTargets: extractStableComparisonTargets(text),
+    topicKeywords,
+    lastUserQuestion: lastUserQuestion ? summarizeMessageContent(lastUserQuestion, 220) : previousState?.lastUserQuestion,
+    subjectChanged: switchSignal.subjectChanged,
+    subjectChangeReason: switchSignal.subjectChangeReason,
+    updatedAt: Date.now(),
+  })
+
+  if (!nextState) return undefined
+
+  const hasMeaningfulState = Boolean(
+    nextState.primaryCompany ||
+    nextState.stockCodes.length ||
+    nextState.timeRange ||
+    nextState.comparisonTargets.length ||
+    nextState.topicKeywords.length ||
+    nextState.lastUserQuestion ||
+    nextState.subjectChanged
+  )
+
+  return hasMeaningfulState ? nextState : undefined
+}
+
+function buildConversationContextState(messages: Message[], previousState?: ConversationContextState): ConversationContextState | undefined {
+  const usableMessages = messages
+    .filter((message) => !message.isLoading && message.content)
+    .slice(-MAX_CHAT_HISTORY_MESSAGES)
+
+  if (usableMessages.length === 0 && !previousState) return undefined
+
+  const recentUserMessages = usableMessages.filter((message) => message.role === 'user')
+  const text = usableMessages.map((message) => message.content || '').join('\n')
+  const lastUserQuestion = recentUserMessages.at(-1)?.content
+
+  const companyCandidates = dedupeStrings([
+    ...(lastUserQuestion ? extractCompanyCandidates(lastUserQuestion) : []),
+    ...extractCompanyCandidates(text),
+  ], 4)
+  const topicKeywords = extractTopicKeywords(recentUserMessages.map((message) => message.content || '').join(' '))
+  const switchSignal = detectSubjectSwitch(previousState, lastUserQuestion, companyCandidates, topicKeywords)
+
+  const nextState = mergeContextState(previousState, {
+    primaryCompany: companyCandidates[0] || previousState?.primaryCompany,
+    stockCodes: extractStockCodes(text),
+    timeRange: extractTimeRange(lastUserQuestion || text),
+    comparisonTargets: extractComparisonTargets(text),
+    topicKeywords,
+    lastUserQuestion: lastUserQuestion ? summarizeMessageContent(lastUserQuestion, 220) : previousState?.lastUserQuestion,
+    subjectChanged: switchSignal.subjectChanged,
+    subjectChangeReason: switchSignal.subjectChangeReason,
+    updatedAt: Date.now(),
+  })
+
+  if (!nextState) return undefined
+
+  const hasMeaningfulState = Boolean(
+    nextState.primaryCompany ||
+    nextState.stockCodes.length ||
+    nextState.timeRange ||
+    nextState.comparisonTargets.length ||
+    nextState.topicKeywords.length ||
+    nextState.lastUserQuestion ||
+    nextState.subjectChanged
+  )
+
+  return hasMeaningfulState ? nextState : undefined
+}
+
+function sanitizeMessageForStorage(message: Message): Message {
+  return {
+    ...message,
+    content: message.content ? truncateText(message.content, MAX_STORED_MESSAGE_CONTENT) : undefined,
+    sources: message.sources?.slice(0, 8),
+    steps: message.steps?.slice(0, 8),
+    isLoading: false,
+  }
+}
+
+function sanitizeConversationForStorage(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    contextSummary: conversation.contextSummary ? truncateText(conversation.contextSummary, MAX_CONTEXT_SUMMARY_LENGTH) : undefined,
+    contextState: conversation.contextState
+      ? {
+          ...conversation.contextState,
+          primaryCompany: conversation.contextState.primaryCompany ? truncateText(conversation.contextState.primaryCompany, 40) : undefined,
+          stockCodes: dedupeStrings(conversation.contextState.stockCodes || [], 4),
+          timeRange: conversation.contextState.timeRange ? truncateText(conversation.contextState.timeRange, 40) : undefined,
+          comparisonTargets: dedupeStrings(conversation.contextState.comparisonTargets || [], MAX_CONTEXT_COMPARISON_TARGETS),
+          topicKeywords: dedupeStrings(conversation.contextState.topicKeywords || [], MAX_CONTEXT_KEYWORDS),
+          lastUserQuestion: conversation.contextState.lastUserQuestion
+            ? truncateText(conversation.contextState.lastUserQuestion, 220)
+            : undefined,
+          subjectChanged: Boolean(conversation.contextState.subjectChanged),
+          subjectChangeReason: conversation.contextState.subjectChangeReason
+            ? truncateText(conversation.contextState.subjectChangeReason, 80)
+            : undefined,
+          updatedAt: conversation.contextState.updatedAt || Date.now(),
+        }
+      : undefined,
+    messages: conversation.messages
+      .slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
+      .map(sanitizeMessageForStorage),
+  }
+}
+
+function safeParseConversations(raw: string | null): Conversation[] {
+  if (!raw) return []
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .filter((item): item is Conversation => Boolean(item && typeof item === 'object' && item.id))
+      .slice(0, MAX_STORED_CONVERSATIONS)
+      .map((conversation) => sanitizeConversationForStorage({
+        ...conversation,
+        title: conversation.title || '未命名对话',
+        messages: Array.isArray(conversation.messages) ? conversation.messages : [],
+        timestamp: typeof conversation.timestamp === 'number' ? conversation.timestamp : Date.now(),
+      }))
+  } catch (error) {
+    console.error('Failed to parse stored conversations:', error)
+    return []
+  }
 }
 
 // 折叠面板组件
@@ -148,6 +544,66 @@ function ThinkingChain({ steps, totalDuration }: { steps?: { name: string; statu
       </div>
     </div>
   )
+}
+
+function ContextStateCard({ contextState, contextSummary }: { contextState?: ConversationContextState; contextSummary?: string }) {
+  if (!contextState && !contextSummary) return null
+
+  const pills = [
+    contextState?.primaryCompany ? `主体: ${contextState.primaryCompany}` : null,
+    contextState?.stockCodes?.length ? `代码: ${contextState.stockCodes.join(', ')}` : null,
+    contextState?.timeRange ? `时间: ${contextState.timeRange}` : null,
+    contextState?.comparisonTargets?.length ? `对比: ${contextState.comparisonTargets.join(', ')}` : null,
+  ].filter(Boolean)
+
+  return (
+    <div className="bg-surface-low px-4 py-3 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Database className="h-4 w-4 text-primary" />
+          <span className="font-medium">当前对话上下文</span>
+        </div>
+        {contextState?.subjectChanged && (
+          <span className="bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">
+            已检测到主体切换
+          </span>
+        )}
+      </div>
+
+      {pills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {pills.map((pill) => (
+            <span key={pill} className="bg-surface-high px-2 py-1 text-xs text-muted-foreground">
+              {pill}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {contextState?.topicKeywords?.length ? (
+        <div className="text-xs text-muted-foreground">
+          关注主题: {contextState.topicKeywords.join(' / ')}
+        </div>
+      ) : null}
+
+      {contextState?.subjectChangeReason ? (
+        <div className="text-xs text-amber-600">
+          {contextState.subjectChangeReason}
+        </div>
+      ) : null}
+
+      {contextSummary ? (
+        <div className="text-xs text-muted-foreground leading-5 line-clamp-3">
+          {contextSummary}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function getValuationScenarioValue(scenarios: string | ValuationScenarios | undefined, key: keyof ValuationScenarios) {
+  if (!scenarios || typeof scenarios === 'string') return undefined
+  return scenarios[key]
 }
 
 // 渲染分析结果
@@ -318,14 +774,14 @@ function AnalysisResultCard({ result, mode }: { result: AnalysisResult; mode?: '
                       <span>{result.deepAnalysis.valuationDeep.scenarios}</span>
                     ) : (
                       <div className="mt-1 space-y-1">
-                        {(result.deepAnalysis.valuationDeep.scenarios as any).bull && (
-                          <div className="text-emerald-600 text-xs">Bull: {(result.deepAnalysis.valuationDeep.scenarios as any).bull}</div>
+                        {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'bull') && (
+                          <div className="text-emerald-600 text-xs">Bull: {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'bull')}</div>
                         )}
-                        {(result.deepAnalysis.valuationDeep.scenarios as any).base && (
-                          <div className="text-blue-600 text-xs">Base: {(result.deepAnalysis.valuationDeep.scenarios as any).base}</div>
+                        {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'base') && (
+                          <div className="text-blue-600 text-xs">Base: {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'base')}</div>
                         )}
-                        {(result.deepAnalysis.valuationDeep.scenarios as any).bear && (
-                          <div className="text-rose-600 text-xs">Bear: {(result.deepAnalysis.valuationDeep.scenarios as any).bear}</div>
+                        {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'bear') && (
+                          <div className="text-rose-600 text-xs">Bear: {getValuationScenarioValue(result.deepAnalysis.valuationDeep.scenarios, 'bear')}</div>
                         )}
                       </div>
                     )}
@@ -437,28 +893,31 @@ export default function AnalyzePage() {
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([])
   const [analysisMode, setAnalysisMode] = useState<'basic' | 'deep'>('basic')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [showHistory, setShowHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showModeDropdown, setShowModeDropdown] = useState(false)
   const modeDropdownRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const activeRequestRef = useRef<AbortController | null>(null)
 
   // 从 localStorage 加载历史
   useEffect(() => {
-    const saved = localStorage.getItem('conversations')
-    if (saved) {
-      try {
-        setConversations(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load conversations:', e)
-      }
-    }
+    setConversations(safeParseConversations(localStorage.getItem('conversations')))
   }, [])
 
   // 保存到 localStorage
   const saveConversations = useCallback((newConversations: Conversation[]) => {
-    setConversations(newConversations)
-    localStorage.setItem('conversations', JSON.stringify(newConversations))
+    const sanitized = newConversations
+      .slice(0, MAX_STORED_CONVERSATIONS)
+      .map(sanitizeConversationForStorage)
+
+    setConversations(sanitized)
+
+    try {
+      localStorage.setItem('conversations', JSON.stringify(sanitized))
+    } catch (error) {
+      console.error('Failed to save conversations:', error)
+      setError('本地会话缓存已满，系统将仅保留当前页面会话。')
+    }
   }, [])
 
   // 关闭下拉菜单当点击外部
@@ -479,6 +938,51 @@ export default function AnalyzePage() {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    return () => {
+      activeRequestRef.current?.abort()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!currentConversationId) return
+
+    setConversations((prev) => {
+      const target = prev.find((conversation) => conversation.id === currentConversationId)
+      if (!target) return prev
+
+      const sanitizedMessages = messages
+        .filter((message) => !message.isLoading)
+        .slice(-MAX_STORED_MESSAGES_PER_CONVERSATION)
+        .map(sanitizeMessageForStorage)
+
+      const nextTitle = target.title === '新对话' && sanitizedMessages.length > 0
+        ? (sanitizedMessages.find((message) => message.role === 'user')?.content?.slice(0, 24) || '新对话')
+        : target.title
+
+      const updated = prev.map((conversation) =>
+        conversation.id === currentConversationId
+          ? sanitizeConversationForStorage({
+              ...conversation,
+              title: nextTitle,
+              contextSummary: buildStableConversationSummary(sanitizedMessages),
+              contextState: buildStableConversationContextState(sanitizedMessages, conversation.contextState),
+              messages: sanitizedMessages,
+              timestamp: sanitizedMessages.at(-1)?.timestamp || conversation.timestamp,
+            })
+          : conversation
+      )
+
+      try {
+        localStorage.setItem('conversations', JSON.stringify(updated))
+      } catch (error) {
+        console.error('Failed to sync conversations:', error)
+      }
+
+      return updated
+    })
+  }, [currentConversationId, messages])
+
   // 新建对话
   const newChat = useCallback(() => {
     const newId = Date.now().toString()
@@ -487,6 +991,8 @@ export default function AnalyzePage() {
       title: '新对话',
       messages: [],
       timestamp: Date.now(),
+      contextSummary: '',
+      contextState: undefined,
     }
     // 新对话放在最前面
     const updatedConversations = [newConversation, ...conversations]
@@ -505,7 +1011,6 @@ export default function AnalyzePage() {
     setPendingFiles([])
     setInputText('')
     setError(null)
-    setShowHistory(false)
   }, [])
 
   // 删除对话
@@ -518,14 +1023,6 @@ export default function AnalyzePage() {
       setPendingFiles([])
     }
   }, [conversations, currentConversationId, saveConversations])
-
-  // 更新对话标题
-  const updateConversationTitle = useCallback((conversationId: string, title: string) => {
-    const newConversations = conversations.map(c =>
-      c.id === conversationId ? { ...c, title } : c
-    )
-    saveConversations(newConversations)
-  }, [conversations, saveConversations])
 
   // 文件上传处理
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -570,6 +1067,9 @@ export default function AnalyzePage() {
     // 删除 alert 弹窗，直接发送
     setIsAnalyzing(true)
     setError(null)
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeRequestRef.current = controller
 
     // 立即添加用户消息到界面
     const userMessageId = Date.now().toString()
@@ -581,9 +1081,6 @@ export default function AnalyzePage() {
       analysisMode,
       timestamp: Date.now(),
     }
-    setMessages(prev => [...prev, userMessage])
-
-    // 添加加载中的AI消息占位
     const loadingMessageId = (Date.now() + 1).toString()
     const loadingMessage: Message = {
       id: loadingMessageId,
@@ -591,7 +1088,7 @@ export default function AnalyzePage() {
       isLoading: true,
       timestamp: Date.now(),
     }
-    setMessages(prev => [...prev, loadingMessage])
+    setMessages(prev => [...prev, userMessage, loadingMessage])
 
     // 清空输入
     setInputText('')
@@ -609,6 +1106,7 @@ export default function AnalyzePage() {
         const response = await fetch('/api/analyze', {
           method: 'POST',
           body: formData,
+          signal: controller.signal,
         })
 
         // 安全解析JSON
@@ -639,15 +1137,29 @@ export default function AnalyzePage() {
         const chatMessages: { role: 'user' | 'assistant'; content: string }[] = []
 
         // 添加历史对话（排除加载中的消息）
-        for (const msg of messages) {
+        for (const msg of messages.slice(-MAX_CHAT_HISTORY_MESSAGES)) {
           if (msg.role === 'user' && msg.content && !msg.isLoading) {
-            chatMessages.push({ role: 'user', content: msg.content })
+            chatMessages.push({ role: 'user', content: truncateText(msg.content, MAX_CHAT_MESSAGE_LENGTH) })
           } else if (msg.role === 'assistant' && msg.content && !msg.isLoading) {
-            chatMessages.push({ role: 'assistant', content: msg.content })
+            chatMessages.push({ role: 'assistant', content: truncateText(msg.content, MAX_CHAT_MESSAGE_LENGTH) })
           }
         }
         // 添加当前问题
-        chatMessages.push({ role: 'user', content: trimmedInput })
+        chatMessages.push({ role: 'user', content: truncateText(trimmedInput, MAX_CHAT_MESSAGE_LENGTH) })
+
+        const recentContextMessages = messages
+          .filter((msg) => !msg.isLoading && msg.content)
+          .slice(-MAX_CONTEXT_TURNS)
+          .map((msg) => ({
+            role: msg.role,
+            content: summarizeMessageContent(msg.content || '', msg.role === 'user' ? 200 : 260),
+          }))
+
+        const currentConversation = currentConversationId
+          ? conversations.find((conversation) => conversation.id === currentConversationId)
+          : null
+        const contextSummary = currentConversation?.contextSummary || buildStableConversationSummary(messages)
+        const contextState = buildStableConversationContextState(messages, currentConversation?.contextState)
 
         console.log('[handleAnalyze] Sending chat request with messages:', chatMessages.length)
 
@@ -658,7 +1170,11 @@ export default function AnalyzePage() {
             messages: chatMessages,
             mode: analysisMode,
             use_workflow: true,  // 使用Python后端工作流获取思维链条
+            context_summary: contextSummary,
+            context_state: contextState,
+            recent_context_messages: recentContextMessages,
           }),
+          signal: controller.signal,
         })
 
         // 安全解析JSON
@@ -687,6 +1203,10 @@ export default function AnalyzePage() {
 
     } catch (err) {
       console.error('[handleAnalyze] Error:', err)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId))
+        return
+      }
       setError(err instanceof Error ? err.message : '请求过程中出现错误')
 
       // 更新为错误消息
@@ -696,40 +1216,11 @@ export default function AnalyzePage() {
           : msg
       ))
     } finally {
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null
+      }
       setIsAnalyzing(false)
     }
-  }
-
-  // 构建纯文字聊天的上下文
-  const buildChatContextForTextChat = (allMessages: Message[], currentQuestion: string) => {
-    const chatMessages: { role: 'system' | 'user' | 'assistant', content: string }[] = []
-
-    // 添加系统提示
-    chatMessages.push({
-      role: 'system',
-      content: `你是一位资深投资研究分析师，可以回答用户关于投资、股票、市场、财务分析等方面的问题。
-
-回答原则：
-1. 提供专业、客观的投资分析建议
-2. 如果用户询问具体公司或股票，给出基于基本面的分析
-3. 如果不确定，诚实说明，不要编造具体数据
-4. 投资建议要 actionable，说明理由
-5. 风险提示要清晰`,
-    })
-
-    // 添加历史对话
-    for (const msg of allMessages) {
-      if (msg.role === 'user' && msg.content) {
-        chatMessages.push({ role: 'user', content: msg.content })
-      } else if (msg.role === 'assistant' && msg.content) {
-        chatMessages.push({ role: 'assistant', content: msg.content })
-      }
-    }
-
-    // 添加当前问题
-    chatMessages.push({ role: 'user', content: currentQuestion })
-
-    return chatMessages
   }
 
   const formatFileSize = (bytes: number) => {
@@ -754,6 +1245,18 @@ export default function AnalyzePage() {
       return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
     }
   }
+
+  const visibleMessages = useMemo(
+    () => messages.slice(-MAX_RENDERED_MESSAGES),
+    [messages]
+  )
+  const hiddenMessageCount = Math.max(messages.length - visibleMessages.length, 0)
+  const currentConversation = useMemo(
+    () => (currentConversationId ? conversations.find((conversation) => conversation.id === currentConversationId) : null),
+    [conversations, currentConversationId]
+  )
+  const activeContextState = currentConversation?.contextState || buildStableConversationContextState(messages)
+  const activeContextSummary = currentConversation?.contextSummary || buildStableConversationSummary(messages)
 
   return (
     <div className="h-full flex">
@@ -897,7 +1400,13 @@ export default function AnalyzePage() {
           ) : (
             // 对话列表
             <div className="max-w-3xl mx-auto space-y-6">
-              {messages.map((message) => (
+              <ContextStateCard contextState={activeContextState} contextSummary={activeContextSummary} />
+              {hiddenMessageCount > 0 && (
+                <div className="bg-surface-low px-4 py-3 text-xs text-muted-foreground">
+                  为了提升页面稳定性，已折叠较早的 {hiddenMessageCount} 条消息，仅展示最近 {visibleMessages.length} 条。
+                </div>
+              )}
+              {visibleMessages.map((message) => (
                 <div key={message.id} className={cn('flex gap-4', message.role === 'user' ? 'flex-row-reverse' : '')}>
                   {/* Avatar */}
                   <div className={cn(

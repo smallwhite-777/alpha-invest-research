@@ -3,18 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { useTheme } from 'next-themes'
-import dynamic from 'next/dynamic'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { MacroIndicator } from '@/types/macro'
-import { ClientErrorBoundary } from '@/components/ui/ClientErrorBoundary'
-
-const ReactECharts = dynamic(() => import('echarts-for-react'), {
-  ssr: false,
-  loading: () => null,
-})
+import { SafeEChart } from '@/components/ui/SafeEChart'
 
 type MacroGroup = {
   indicatorCode: string
@@ -36,8 +30,28 @@ const CORRELATION_DEFAULTS = {
   lag: '0',
 }
 
+const REQUEST_TIMEOUT_MS = 15000
+const swrOptions = {
+  revalidateOnFocus: false,
+  revalidateIfStale: false,
+  shouldRetryOnError: false,
+  errorRetryCount: 1,
+  dedupingInterval: 300000,
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 const fetcher = async <T,>(url: string): Promise<T> => {
-  const res = await fetch(url)
+  const res = await fetchWithTimeout(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -50,11 +64,26 @@ function formatDate(date: string) {
   }
 }
 
-function normalizeValues(values: number[]) {
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-  return values.map((value) => ((value - min) / range) * 100)
+function sanitizeMacroData(data: Array<{ date: string; value: number }>) {
+  return data.filter(
+    (item) =>
+      Boolean(item?.date) &&
+      typeof item.value === 'number' &&
+      Number.isFinite(item.value)
+  )
+}
+
+interface CorrelationPoint {
+  x: number
+  y: number
+  date: string
+}
+
+interface CorrelationResult {
+  correlation?: number
+  sampleSize?: number
+  regression?: { r2?: number }
+  dataPoints?: CorrelationPoint[]
 }
 
 function buildDataMap(groups: MacroGroup[]) {
@@ -63,12 +92,13 @@ function buildDataMap(groups: MacroGroup[]) {
 
 export default function MacroPage() {
   const { resolvedTheme } = useTheme()
+  const [currentTime] = useState(() => Date.now())
   const [codeX, setCodeX] = useState(CORRELATION_DEFAULTS.codeX)
   const [codeY, setCodeY] = useState(CORRELATION_DEFAULTS.codeY)
   const [lag, setLag] = useState(CORRELATION_DEFAULTS.lag)
   const [compareLeft, setCompareLeft] = useState('CN_M2_YOY')
   const [compareRight, setCompareRight] = useState('US_DGS10_M')
-  const [correlationResult, setCorrelationResult] = useState<any>(null)
+  const [correlationResult, setCorrelationResult] = useState<CorrelationResult | null>(null)
   const [correlationLoading, setCorrelationLoading] = useState(false)
 
   const allCodes = useMemo(
@@ -79,13 +109,13 @@ export default function MacroPage() {
   const { data: indicators = [], error: indicatorsError } = useSWR<MacroIndicator[]>(
     '/api/macro/indicators',
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
 
   const { data: macroGroups = [] } = useSWR<MacroGroup[]>(
     `/api/macro/data?codes=${allCodes}&limit=120`,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
 
   const dataMap = useMemo(() => buildDataMap(macroGroups), [macroGroups])
@@ -108,7 +138,7 @@ export default function MacroPage() {
   const { data: comparisonGroups = [] } = useSWR<MacroGroup[]>(
     `/api/macro/data?codes=${compareCodes}&limit=120`,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 300000 }
+    swrOptions
   )
 
   const runCorrelation = async () => {
@@ -116,7 +146,7 @@ export default function MacroPage() {
 
     setCorrelationLoading(true)
     try {
-      const response = await fetch('/api/macro/correlation', {
+      const response = await fetchWithTimeout('/api/macro/correlation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codeX, codeY, lag: Number(lag) }),
@@ -132,6 +162,8 @@ export default function MacroPage() {
 
   useEffect(() => {
     runCorrelation()
+    // We intentionally run only once on initial mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -174,6 +206,7 @@ export default function MacroPage() {
                       key={`${section.key}-${code}`}
                       indicator={indicators.find((item) => item.code === code)}
                       data={dataMap.get(code) || []}
+                      currentTime={currentTime}
                     />
                   ))}
                 </div>
@@ -300,12 +333,15 @@ export default function MacroPage() {
 function IndicatorCard({
   indicator,
   data,
+  currentTime,
 }: {
   indicator?: MacroIndicator
   data: Array<{ date: string; value: number }>
+  currentTime: number
 }) {
-  const latest = data.at(-1)
-  const previous = data.at(-2)
+  const safeData = useMemo(() => sanitizeMacroData(data), [data])
+  const latest = safeData.at(-1)
+  const previous = safeData.at(-2)
   const change = latest && previous ? latest.value - previous.value : null
   const staleThresholdDays =
     indicator?.frequency === 'daily'
@@ -316,7 +352,7 @@ function IndicatorCard({
           ? 140
           : 400
   const isStale = latest
-    ? (Date.now() - new Date(latest.date).getTime()) / 86400000 > staleThresholdDays
+    ? (currentTime - new Date(latest.date).getTime()) / 86400000 > staleThresholdDays
     : false
 
   return (
@@ -352,26 +388,29 @@ function IndicatorCard({
         <div className="text-sm text-muted-foreground">暂无数据</div>
       )}
 
-      <MiniChart data={data} />
+      <MiniChart data={safeData} chartId={indicator?.code || 'unknown'} />
     </div>
   )
 }
 
-function MiniChart({ data }: { data: Array<{ date: string; value: number }> }) {
+function MiniChart({
+  data,
+  chartId,
+}: {
+  data: Array<{ date: string; value: number }>
+  chartId: string
+}) {
   const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
-
-  if (!mounted || data.length < 2) return null
+  if (data.length < 2) return null
 
   const isDark = resolvedTheme === 'dark'
-  const values = data.map((item) => item.value).filter((value) => Number.isFinite(value))
+  const cleanData = sanitizeMacroData(data)
+  const values = cleanData.map((item) => item.value)
   if (values.length < 2) return null
 
   const option = {
     grid: { left: 0, right: 0, top: 5, bottom: 5 },
-    xAxis: { type: 'category' as const, show: false, data: data.map((item) => item.date) },
+    xAxis: { type: 'category' as const, show: false, data: cleanData.map((item) => item.date) },
     yAxis: { type: 'value' as const, show: false },
     series: [
       {
@@ -387,9 +426,7 @@ function MiniChart({ data }: { data: Array<{ date: string; value: number }> }) {
 
   return (
     <div className="mt-3 h-16">
-      <ClientErrorBoundary>
-        <ReactECharts option={option} style={{ height: '100%' }} opts={{ renderer: 'canvas' }} />
-      </ClientErrorBoundary>
+      <SafeEChart chartKey={`${chartId}-${cleanData.at(-1)?.date || 'empty'}`} option={option} height="100%" />
     </div>
   )
 }
@@ -401,7 +438,7 @@ function CorrelationPanel({
   codeY,
   isDark,
 }: {
-  result: any
+  result: CorrelationResult
   indicators: MacroIndicator[]
   codeX: string
   codeY: string
@@ -409,7 +446,11 @@ function CorrelationPanel({
 }) {
   const indicatorX = indicators.find((item) => item.code === codeX)
   const indicatorY = indicators.find((item) => item.code === codeY)
-  const points = result?.dataPoints || []
+  const points = (result?.dataPoints || []).filter(
+    (item): item is CorrelationPoint =>
+      Boolean(item) && Number.isFinite(item.x) && Number.isFinite(item.y) && typeof item.date === 'string'
+  )
+  const hasPoints = points.length >= 2
 
   const option = {
     grid: { left: 30, right: 20, top: 20, bottom: 35 },
@@ -434,7 +475,7 @@ function CorrelationPanel({
     series: [
       {
         type: 'scatter' as const,
-        data: points.map((item: { x: number; y: number; date: string }) => [item.x, item.y, item.date]),
+        data: points.map((item) => [item.x, item.y, item.date]),
         symbolSize: 10,
         itemStyle: { color: '#3b82f6' },
       },
@@ -459,9 +500,13 @@ function CorrelationPanel({
         </div>
       </div>
       <div className="h-[360px]">
-        <ClientErrorBoundary>
-          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
-        </ClientErrorBoundary>
+        {hasPoints ? (
+          <SafeEChart chartKey={`${codeX}-${codeY}-${points.at(-1)?.date || 'empty'}`} option={option} height="100%" width="100%" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            可用样本不足，暂不显示散点图。
+          </div>
+        )}
       </div>
     </div>
   )
@@ -482,11 +527,14 @@ function ComparisonPanel({
 }) {
   const leftSeries = groups.find((group) => group.indicatorCode === leftCode)?.data || []
   const rightSeries = groups.find((group) => group.indicatorCode === rightCode)?.data || []
-  const rightMap = new Map(rightSeries.map((item) => [item.date, item.value]))
-  const aligned = leftSeries
+  const safeLeftSeries = sanitizeMacroData(leftSeries)
+  const safeRightSeries = sanitizeMacroData(rightSeries)
+  const rightMap = new Map(safeRightSeries.map((item) => [item.date, item.value]))
+  const aligned = safeLeftSeries
     .filter((item) => rightMap.has(item.date))
     .map((item) => ({ date: item.date, left: item.value, right: rightMap.get(item.date)! }))
     .slice(-60)
+  const hasAlignedData = aligned.length >= 2
 
   const leftIndicator = indicators.find((item) => item.code === leftCode)
   const rightIndicator = indicators.find((item) => item.code === rightCode)
@@ -554,9 +602,13 @@ function ComparisonPanel({
         </div>
       </div>
       <div className="h-[380px]">
-        <ClientErrorBoundary>
-          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
-        </ClientErrorBoundary>
+        {hasAlignedData ? (
+          <SafeEChart chartKey={`${leftCode}-${rightCode}-${aligned.at(-1)?.date || 'empty'}`} option={option} height="100%" width="100%" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            当前两个指标没有足够的重叠时间样本。
+          </div>
+        )}
       </div>
     </div>
   )

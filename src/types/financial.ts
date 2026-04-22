@@ -185,6 +185,29 @@ export interface PEBandResponse {
   graham_number: number      // Graham Number: √(22.5 × EPS × BVPS)
 }
 
+export interface ValuationApiResponse {
+  success: boolean
+  metrics?: {
+    pe_ttm?: number
+    pb?: number
+    ps?: number
+    market_cap?: string
+    net_profit?: number
+    revenue?: number
+    net_assets?: number
+    latest_price?: number
+    industry_avg_pe?: number
+    industry_avg_pb?: number
+    data_source?: string
+  }
+  pe_percentile?: number
+  pb_percentile?: number
+  stock_info?: {
+    industry?: string
+    sector?: string
+  }
+}
+
 // ==================== Module 5: 成长性分析 ====================
 
 /** CAGR数据 */
@@ -351,6 +374,19 @@ export interface FinancialAnalysisProps {
   stockName?: string
   isDark?: boolean
   defaultTab?: 'overview' | 'roe' | 'dcf' | 'valuation' | 'growth' | 'risk'
+  modulesData?: {
+    radar?: RadarResponse
+    dupont?: DuPontResponse
+    dcf?: DCFResponse
+    dcfParams?: DCFParams
+    updateDCFParams?: (params: DCFParams) => void
+    peBand?: PEBandResponse
+    growth?: GrowthResponse
+    risk?: RiskResponse
+    valuation?: ValuationApiResponse
+    isLoading?: boolean
+    hasError?: unknown
+  }
 }
 
 /** DCF计算器Props */

@@ -7,21 +7,26 @@ import { zhCN } from 'date-fns/locale'
 import { INTELLIGENCE_CATEGORIES, IMPORTANCE_LEVELS } from '@/lib/constants'
 import type { Intelligence } from '@/types/intelligence'
 
+type IntelligenceTagLike = string | { tag?: { id?: string; name?: string }; name?: string }
+type IntelligenceStockLike = { stockSymbol?: string; symbol?: string; stockName?: string; name?: string }
+
 interface IntelligenceListProps {
   category?: string
   sector?: string
   importance?: number
   search?: string
+  recentDays?: number
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
-export function IntelligenceList({ category, sector, importance, search }: IntelligenceListProps) {
+export function IntelligenceList({ category, sector, importance, search, recentDays }: IntelligenceListProps) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
   if (sector) params.set('sector', sector)
   if (importance) params.set('importance', importance.toString())
   if (search) params.set('search', search)
+  if (recentDays) params.set('recent_days', recentDays.toString())
   params.set('limit', '20')
 
   const { data, error, isLoading } = useSWR(`/api/intelligence?${params.toString()}`, fetcher)
@@ -95,7 +100,7 @@ function IntelligenceCard({ intelligence, index }: { intelligence: Intelligence;
         )}
 
         <div className="flex flex-wrap gap-1.5">
-          {intelligence.tags?.map((t: any, idx: number) => {
+          {intelligence.tags?.map((t: IntelligenceTagLike, idx: number) => {
             const tagName = typeof t === 'string' ? t : t?.tag?.name || t?.name || ''
             const tagId = typeof t === 'string' ? t : t?.tag?.id || idx
             return (
@@ -106,9 +111,9 @@ function IntelligenceCard({ intelligence, index }: { intelligence: Intelligence;
           })}
         </div>
 
-        {(intelligence as any).stocks?.length > 0 && (
+        {((intelligence as Intelligence & { stocks?: IntelligenceStockLike[] }).stocks?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {(intelligence as any).stocks.map((s: any) => (
+            {(intelligence as Intelligence & { stocks?: IntelligenceStockLike[] }).stocks?.map((s: IntelligenceStockLike) => (
               <span key={s.stockSymbol || s.symbol} className="text-[10px] text-up bg-surface-high px-2 py-0.5">
                 {s.stockName || s.name || s.symbol}
               </span>

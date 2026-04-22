@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,9 @@ interface MarkdownRendererProps {
   content: string
   className?: string
 }
+
+const MAX_INITIAL_RENDER_LENGTH = 20000
+const MAX_THINK_BLOCK_LENGTH = 8000
 
 // 代码块组件
 function CodeBlock({ language, code }: { language?: string; code: string }) {
@@ -56,6 +59,9 @@ function CodeBlock({ language, code }: { language?: string; code: string }) {
 // 思考过程组件
 function ThinkingBlock({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false)
+  const displayContent = content.length > MAX_THINK_BLOCK_LENGTH
+    ? `${content.slice(0, MAX_THINK_BLOCK_LENGTH)}\n\n[思考过程过长，已截断显示]`
+    : content
 
   return (
     <div className="my-3 rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
@@ -73,7 +79,7 @@ function ThinkingBlock({ content }: { content: string }) {
       </button>
       {expanded && (
         <div className="px-4 pb-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap border-t border-primary/10">
-          {content}
+          {displayContent}
         </div>
       )}
     </div>
@@ -120,10 +126,25 @@ function parseContent(content: string) {
 }
 
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
-  const parts = parseContent(content)
+  const [expanded, setExpanded] = useState(false)
+  const isLongContent = content.length > MAX_INITIAL_RENDER_LENGTH
+  const displayContent = expanded || !isLongContent
+    ? content
+    : `${content.slice(0, MAX_INITIAL_RENDER_LENGTH)}\n\n[内容较长，已默认折叠以提升页面稳定性]`
+  const parts = useMemo(() => parseContent(displayContent), [displayContent])
 
   return (
     <div className={cn('markdown-content space-y-1', className)}>
+      {isLongContent && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          {expanded ? '收起超长内容' : '展开完整内容'}
+        </button>
+      )}
       {parts.map((part, idx) => (
         <div key={idx}>
           {part.type === 'think' ? (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { suggestTemplate, getTemplateSystemPrompt } from '@/lib/ai/templates'
+import type { ValuationApiResponse } from '@/types/financial'
 
 // Python backend URL for annual report search
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5003'
@@ -415,7 +416,7 @@ function buildAnnualReportContext(result: AnnualReportSearchResult): string {
 
 // Fetch relevant intelligence from database
 async function fetchRelevantIntelligence(keywords: string[], _question: string) {
-  const orConditions: any[] = []
+  const orConditions: QueryCondition[] = []
 
   for (const keyword of keywords.slice(0, 5)) {
     orConditions.push(
@@ -427,7 +428,7 @@ async function fetchRelevantIntelligence(keywords: string[], _question: string) 
     )
   }
 
-  let matched: any[] = []
+  let matched: IntelligenceItemLike[] = []
   if (orConditions.length > 0) {
     matched = await prisma.intelligence.findMany({
       where: { OR: orConditions },
@@ -461,19 +462,20 @@ async function fetchRelevantIntelligence(keywords: string[], _question: string) 
 }
 
 // Build text context from intelligence items
-function buildContext(items: any[]): string {
+function buildContext(items: IntelligenceItemLike[]): string {
   if (items.length === 0) return ''
 
   return items.map((item, idx) => {
-    const tags = item.tags?.map((t: any) => t.tag.name).join('、') || ''
-    const stocks = item.stocks?.map((s: any) => `${s.stockName}(${s.stockSymbol})`).join('、') || ''
-    const sectors = item.sectors?.map((s: any) => s.sectorName).join('、') || ''
+    const tags = item.tags?.map((tagLink) => tagLink.tag.name).join('?') || ''
+    const stocks = item.stocks?.map((stock) => `${stock.stockName}${stock.stockSymbol ? `(${stock.stockSymbol})` : ''}`).join('?') || ''
+    const sectors = item.sectors?.map((sector) => sector.sectorName).join('?') || ''
+    const content = item.content || ''
 
-    return `### 情报 ${idx + 1}: ${item.title}
-- 分类: ${item.category} | 重要性: ${item.importance}/5 | 时间: ${item.createdAt}
-- 标签: ${tags || '无'} | 行业: ${sectors || '无'} | 标的: ${stocks || '无'}
-- 摘要: ${item.summary || '无'}
-- 内容: ${item.content.substring(0, 500)}${item.content.length > 500 ? '...' : ''}`
+    return `### ?? ${idx + 1}: ${item.title}
+- ??: ${item.category || '??'} | ???: ${item.importance ?? '??'}/5 | ??: ${item.createdAt || '??'}
+- ??: ${tags || '?'} | ??: ${sectors || '?'} | ??: ${stocks || '?'}
+- ??: ${item.summary || '?'}
+- ??: ${content.slice(0, 500)}${content.length > 500 ? '...' : ''}`
   }).join('\n\n')
 }
 
@@ -492,7 +494,7 @@ async function getKnowledgeStats() {
   }
 }
 
-// ========== Plan C: Tool Execution Functions ==========
+// Tool execution helpers for the fallback LLM path.
 interface ToolCall {
   id: string
   type: 'function'
@@ -509,10 +511,10 @@ interface ToolResult {
 }
 
 // Helper function to safely parse JSON response
-async function safeJsonParse(response: Response): Promise<any> {
+async function safeJsonParse<T>(response: Response): Promise<T | null> {
   try {
     const text = await response.text()
-    return text ? JSON.parse(text) : null
+    return text ? JSON.parse(text) as T : null
   } catch {
     return null
   }
@@ -559,7 +561,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
         const category = args.category
         const limit = args.limit || 10
 
-        const orConditions: any[] = []
+        const orConditions: QueryCondition[] = []
         for (const keyword of keywords.slice(0, 5)) {
           orConditions.push(
             { title: { contains: keyword } },
@@ -568,7 +570,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
           )
         }
 
-        const where: any = orConditions.length > 0 ? { OR: orConditions } : {}
+        const where: Record<string, unknown> = orConditions.length > 0 ? { OR: orConditions } : {}
         if (category) {
           where.category = category
         }
@@ -588,7 +590,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
         } else {
           const parts: string[] = [`找到 ${items.length} 条相关情报：`]
           items.forEach((item, idx) => {
-            const stocks = item.stocks?.map((s: any) => s.stockName).join('、') || '无'
+            const stocks = item.stocks?.map((stock) => stock.stockName).join('、') || '无'
             parts.push(`\n### ${idx + 1}. ${item.title}`)
             parts.push(`- 分类: ${item.category} | 重要性: ${item.importance}/5`)
             parts.push(`- 标的: ${stocks}`)
@@ -645,14 +647,17 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
             break
           }
 
-          const data = await safeJsonParse(response)
+          const data = await safeJsonParse<RealtimePriceResponse>(response)
 
           if (!data?.success || !data.data) {
             content = `无法获取 ${stock_code} 的股价数据`
             break
           }
 
-          const { dates, close, open, high, low, volume } = data.data
+          const dates = data.data.dates ?? []
+          const close = data.data.close ?? []
+          const high = data.data.high ?? []
+          const low = data.data.low ?? []
           const summary = data.summary || {}
 
           const parts: string[] = [`## ${stock_code} 股价数据`]
@@ -701,7 +706,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
             break
           }
 
-          const data = await safeJsonParse(response)
+          const data = await safeJsonParse<StockNewsResponse>(response)
           const news = keyword ? (data?.trends?.[source] || []) : (data?.news || [])
 
           if (!news || news.length === 0) {
@@ -712,7 +717,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
           const parts: string[] = [`## ${keyword ? `${keyword}相关新闻` : '财经热点新闻'}`]
           parts.push(`来源: ${source}\n`)
 
-          news.slice(0, count).forEach((item: any, idx: number) => {
+          news.slice(0, count).forEach((item: NewsItemLike, idx: number) => {
             const title = item.title || item.content || '未知标题'
             const time = item.time || item.pub_time || ''
             parts.push(`${idx + 1}. **${title.substring(0, 50)}${title.length > 50 ? '...' : ''}`)
@@ -740,7 +745,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
             break
           }
 
-          const data = await safeJsonParse(response)
+          const data = await safeJsonParse<PeerComparisonToolResponse>(response)
 
           if (!data?.success || !data.peers || data.peers.length === 0) {
             content = data?.message || `未找到 ${stock_code} 的同行对比数据`
@@ -755,7 +760,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
           parts.push('| 公司 | 营收 | 净利润 | ROE | 毛利率 |')
           parts.push('|------|------|--------|-----|--------|')
 
-          data.peers.forEach((peer: any) => {
+          data.peers.forEach((peer: PeerLike) => {
             const name = peer.name || peer.code
             const revenue = peer.revenue || '-'
             const netProfit = peer.net_profit || '-'
@@ -786,7 +791,7 @@ async function executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
             break
           }
 
-          const data = await safeJsonParse(response)
+          const data = await safeJsonParse<ValuationApiResponse>(response)
 
           if (!data?.success) {
             content = `无法获取 ${stock_code} 的估值数据`
@@ -859,25 +864,198 @@ function supportsToolCalling(baseUrl: string): boolean {
          baseUrl.includes('siliconflow.cn')
 }
 
+interface ConversationContextState {
+  primaryCompany?: string
+  stockCodes?: string[]
+  timeRange?: string
+  comparisonTargets?: string[]
+  topicKeywords?: string[]
+  lastUserQuestion?: string
+  subjectChanged?: boolean
+  subjectChangeReason?: string
+  updatedAt?: number
+}
+
+interface IntelligenceTagLink {
+  tag: { name: string }
+}
+
+interface IntelligenceStock {
+  stockName: string
+  stockSymbol?: string
+}
+
+interface IntelligenceSector {
+  sectorName: string
+}
+
+interface IntelligenceItemLike {
+  id?: string | number
+  title: string
+  category?: string
+  importance?: number
+  createdAt?: string | Date
+  summary?: string | null
+  content: string
+  tags?: IntelligenceTagLink[]
+  stocks?: IntelligenceStock[]
+  sectors?: IntelligenceSector[]
+}
+
+interface WorkflowSourceLike {
+  stock_code?: string
+  display?: string
+  company_name?: string
+  type?: string
+}
+
+interface WorkflowStepLike {
+  name: string
+}
+
+type QueryCondition = Record<string, unknown>
+
+interface NewsItemLike {
+  title?: string
+  content?: string
+  time?: string
+  pub_time?: string
+}
+
+interface PeerLike {
+  name?: string
+  code?: string
+  revenue?: string | number
+  net_profit?: string | number
+  roe?: string | number
+  gross_margin?: string | number
+}
+
+interface RealtimePriceResponse {
+  success?: boolean
+  data?: {
+    dates?: string[]
+    close?: number[]
+    open?: number[]
+    high?: number[]
+    low?: number[]
+    volume?: number[]
+  }
+  summary?: {
+    change_pct?: number
+    avg_volume?: number
+  }
+}
+
+interface StockNewsResponse {
+  news?: NewsItemLike[]
+  trends?: Record<string, NewsItemLike[]>
+}
+
+interface PeerComparisonToolResponse {
+  success?: boolean
+  stock_code?: string
+  message?: string
+  industry?: string
+  peers: PeerLike[]
+}
+
+interface ChatCompletionMessage {
+  role: string
+  content: string | null
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+}
+
+interface ChatCompletionRequestBody {
+  model: string
+  messages: ChatCompletionMessage[]
+  temperature: number
+  max_tokens: number
+  tools?: typeof TOOLS
+  tool_choice?: 'auto'
+}
+
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: ChatCompletionMessage
+  }>
+}
+
+function buildStructuredContextBlock(contextState?: ConversationContextState) {
+  if (!contextState) return ''
+
+  const lines: string[] = []
+
+  if (contextState.primaryCompany) lines.push(`- Current subject: ${contextState.primaryCompany}`)
+  if (contextState.stockCodes?.length) lines.push(`- Stock codes: ${contextState.stockCodes.join(', ')}`)
+  if (contextState.timeRange) lines.push(`- Time range: ${contextState.timeRange}`)
+  if (contextState.comparisonTargets?.length) lines.push(`- Comparison targets: ${contextState.comparisonTargets.join(', ')}`)
+  if (contextState.topicKeywords?.length) lines.push(`- Topic keywords: ${contextState.topicKeywords.join(', ')}`)
+  if (contextState.lastUserQuestion) lines.push(`- Last question: ${contextState.lastUserQuestion}`)
+  if (contextState.subjectChanged) lines.push('- Subject switched: yes')
+  if (contextState.subjectChangeReason) lines.push(`- Switch reason: ${contextState.subjectChangeReason}`)
+
+  return lines.join('\n')
+}
+
+function buildWorkflowQuery(
+  question: string,
+  contextSummary?: string,
+  contextState?: ConversationContextState,
+  recentContextMessages?: Array<{ role: 'user' | 'assistant'; content: string }>
+) {
+  const parts: string[] = []
+
+  if (contextSummary?.trim()) {
+    parts.push('[Conversation Summary]')
+    parts.push(contextSummary.trim())
+  }
+
+  if (recentContextMessages?.length) {
+    parts.push('[Recent Messages]')
+    for (const message of recentContextMessages.slice(-6)) {
+      const roleLabel = message.role === 'user' ? 'User' : 'Assistant'
+      parts.push(`${roleLabel}: ${message.content.trim()}`)
+    }
+  }
+
+  const structuredContextBlock = buildStructuredContextBlock(contextState)
+  if (structuredContextBlock) {
+    parts.push('[Structured Context]')
+    parts.push(structuredContextBlock)
+  }
+
+  parts.push('[Current Question]')
+  parts.push(question.trim())
+  parts.push('[Answer Guidance] Resolve pronouns using the recent conversation and structured context first. If the user clearly changes subjects, answer based on the current question.')
+
+  return parts.join('\n')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { messages, mode = 'deep', enable_tools = true, use_workflow = true } = body as {
+    const { messages, mode = 'deep', enable_tools = true, use_workflow = true, context_summary, context_state, recent_context_messages } = body as {
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
       mode: 'basic' | 'deep'
       enable_tools?: boolean
-      use_workflow?: boolean  // 新增：使用Python后端工作流获取思维链条
+      use_workflow?: boolean
+      context_summary?: string
+      context_state?: ConversationContextState
+      recent_context_messages?: { role: 'user' | 'assistant'; content: string }[]
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: '请提供对话消息' }, { status: 400 })
+      return NextResponse.json({ error: '???????' }, { status: 400 })
     }
 
     // Extract the latest user question
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
     const question = lastUserMsg?.content || ''
+    const workflowQuery = buildWorkflowQuery(question, context_summary, context_state, recent_context_messages)
 
-    // ========== 新增：使用Python后端工作流获取思维链条 ==========
+    // Prefer the Python workflow when it is available.
     if (use_workflow) {
       console.log('[chat] Using Python backend workflow for thinking chain')
 
@@ -885,7 +1063,7 @@ export async function POST(request: NextRequest) {
         const response = await fetch(`${PYTHON_BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: question, provider: 'minimax' }),
+          body: JSON.stringify({ query: workflowQuery, provider: 'minimax' }),
           signal: AbortSignal.timeout(60000) // 60 second timeout for LLM calls
         })
 
@@ -898,14 +1076,15 @@ export async function POST(request: NextRequest) {
         if (data.status === 'completed') {
           return NextResponse.json({
             result: data.result?.content || '',
-            sources: (data.result?.sources || []).map((s: any) => ({
+            sources: (data.result?.sources || []).map((s: WorkflowSourceLike) => ({
               id: s.stock_code || s.display || 'unknown',
-              title: s.display || s.company_name || '未知来源',
+              title: s.display || s.company_name || '????',
               type: s.type || 'database'
             })),
-            steps: data.steps || [],  // 思维链条步骤
+            steps: data.steps || [],
             total_duration_ms: data.total_duration_ms,
-            workflow: 'python_backend'
+            workflow: 'python_backend',
+            context_used: Boolean(context_summary || context_state || recent_context_messages?.length)
           })
         } else {
           throw new Error(data.error || 'Python workflow failed')
@@ -916,7 +1095,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ========== Legacy: USE_PYTHON_WORKFLOW env flag ==========
+    // Backward-compatible workflow switch kept for existing deployments.
     if (USE_PYTHON_WORKFLOW) {
       console.log('[chat] Using Python backend workflow for unified AI entry point')
 
@@ -924,7 +1103,7 @@ export async function POST(request: NextRequest) {
         const response = await fetch(`${PYTHON_BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: question }),
+          body: JSON.stringify({ query: workflowQuery }),
           signal: AbortSignal.timeout(60000) // 60 second timeout for LLM calls
         })
 
@@ -940,7 +1119,7 @@ export async function POST(request: NextRequest) {
             sources: data.result?.sources || [],
             stats: {
               duration_ms: data.total_duration_ms,
-              steps: data.steps?.map((s: any) => s.name).join(' → ')
+              steps: data.steps?.map((step: WorkflowStepLike) => step.name).join(' ? ')
             },
             workflow: 'python_backend'
           })
@@ -953,46 +1132,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ========== Frontend AI Logic (original implementation) ==========
+    // Frontend fallback logic.
 
-    // ========== Step 1: 提取关键词 ==========
+    // Step 1: extract keywords.
     const keywords = extractKeywords(question)
 
-    // ========== Step 2: 数据库检索 ==========
+    // Step 2: search the intelligence database.
     const relevantIntel = await fetchRelevantIntelligence(keywords, question)
-    const dbContext = buildContext(relevantIntel)
+    const dbContext = buildContext(relevantIntel as IntelligenceItemLike[])
 
-    // ========== Step 3: 年报txt精确搜索 ==========
+    // Step 3: search annual report text files.
     const annualReportResult = await fetchAnnualReportData(keywords, question)
     const annualReportContext = buildAnnualReportContext(annualReportResult)
 
-    // ========== Step 4: 合并上下文 ==========
+    // Step 4: merge context from all sources.
     const combinedContextParts: string[] = []
     if (annualReportContext) {
-      combinedContextParts.push('### 年报财务数据（来自原始年报txt文件）\n' + annualReportContext)
+      combinedContextParts.push('### ????????????? txt ???\n' + annualReportContext)
     }
     if (dbContext) {
-      combinedContextParts.push('### 投研情报数据库\n' + dbContext)
+      combinedContextParts.push('### ???????\n' + dbContext)
     }
     const combinedContext = combinedContextParts.join('\n\n---\n\n')
 
-    // ========== Step 5: 工具智能推荐 - 提取股票代码并预获取数据 ==========
+    // Step 5: suggest tools and prefetch lightweight data.
     const suggestedTools = suggestTools(question)
     const preFetchResults: string[] = []
 
-    // Try to extract stock code from question
+    // Try to extract a stock code from the question.
     const stockCodeMatch = question.match(/(6\d{5}|0\d{5}|3\d{5}|2\d{5})/)
     const stockCode = stockCodeMatch ? stockCodeMatch[1] : null
-
-    // Helper function to safely parse JSON response
-    const safeJsonParse = async (response: Response): Promise<any> => {
-      try {
-        const text = await response.text()
-        return text ? JSON.parse(text) : null
-      } catch {
-        return null
-      }
-    }
 
     // Pre-fetch data for suggested tools if stock code found
     if (stockCode && suggestedTools.length > 0) {
@@ -1005,9 +1174,9 @@ export async function POST(request: NextRequest) {
             signal: AbortSignal.timeout(10000)
           })
           if (valResponse.ok) {
-            const valData = await safeJsonParse(valResponse)
+            const valData = await safeJsonParse<ValuationApiResponse>(valResponse)
             if (valData?.success) {
-              preFetchResults.push(`### 预获取估值数据\n- PE(TTM): ${valData.metrics?.pe_ttm || '-'}\n- PB: ${valData.metrics?.pb || '-'}\n- 市值: ${valData.metrics?.market_cap || '-'}`)
+              preFetchResults.push(`### ???????\n- PE(TTM): ${valData.metrics?.pe_ttm || '-'}\n- PB: ${valData.metrics?.pb || '-'}\n- ??: ${valData.metrics?.market_cap || '-'}`)
             }
           }
         } catch { /* ignore pre-fetch errors */ }
@@ -1020,10 +1189,10 @@ export async function POST(request: NextRequest) {
             signal: AbortSignal.timeout(10000)
           })
           if (priceResponse.ok) {
-            const priceData = await safeJsonParse(priceResponse)
+            const priceData = await safeJsonParse<RealtimePriceResponse>(priceResponse)
             if (priceData?.success && priceData.data?.close) {
               const closes = priceData.data.close
-              preFetchResults.push(`### 预获取股价数据\n- 最新价: ${closes[closes.length - 1]}元`)
+              preFetchResults.push(`### ???????\n- ???: ${closes[closes.length - 1]}?`)
             }
           }
         } catch { /* ignore pre-fetch errors */ }
@@ -1036,9 +1205,10 @@ export async function POST(request: NextRequest) {
             signal: AbortSignal.timeout(10000)
           })
           if (peersResponse.ok) {
-            const peersData = await safeJsonParse(peersResponse)
-            if (peersData?.success && peersData.peers?.length > 0) {
-              preFetchResults.push(`### 预获取同行数据\n- 行业: ${peersData.industry}\n- 同行数: ${peersData.peers.length}`)
+            const peersData = await safeJsonParse<PeerComparisonToolResponse>(peersResponse)
+            const peers = peersData?.peers ?? []
+            if (peersData?.success && peers.length > 0) {
+              preFetchResults.push(`### ???????\n- ??: ${peersData.industry}\n- ???: ${peers.length}`)
             }
           }
         } catch { /* ignore pre-fetch errors */ }
@@ -1047,7 +1217,7 @@ export async function POST(request: NextRequest) {
 
     // Add pre-fetch results to context
     if (preFetchResults.length > 0) {
-      combinedContextParts.push('### 智能预获取数据（基于问题类型）\n' + preFetchResults.join('\n'))
+      combinedContextParts.push('### ???????????????\n' + preFetchResults.join('\n'))
     }
 
     const stats = await getKnowledgeStats()
@@ -1068,8 +1238,8 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       // Mock response
       const mockReply = relevantIntel.length > 0 || annualReportResult.context
-        ? `基于知识库中的数据：\n\n${relevantIntel.slice(0, 3).map((i, idx) => `${idx + 1}. **${i.title}**`).join('\n')}\n\n> 注意：当前为演示模式（未配置AI API Key），配置后将提供深度分析。`
-        : `这是对"${question.slice(0, 30)}..."的模拟回复。配置API后将基于知识库提供深入分析。`
+        ? `??????????\n\n${relevantIntel.slice(0, 3).map((i, idx) => `${idx + 1}. **${i.title}**`).join('\n')}\n\n> ?????????????? AI API Key?????????????`
+        : `????${question.slice(0, 30)}...????????? API ??????????????`
 
       return NextResponse.json({
         result: mockReply,
@@ -1082,8 +1252,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ========== Plan C: Build messages with tool support ==========
-    const aiMessages: Array<{ role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string }> = [
+    // Build messages for the fallback LLM path.
+    const aiMessages: ChatCompletionMessage[] = [
       { role: 'system', content: CHAT_SYSTEM_PROMPT },
     ]
 
@@ -1091,11 +1261,11 @@ export async function POST(request: NextRequest) {
     if (combinedContext) {
       aiMessages.push({
         role: 'user',
-        content: `以下是投研情报数据库中的相关情报：\n\n${combinedContext}\n\n---\n数据库统计：共${stats.total}条情报，涵盖${stats.categories}个分类，${stats.sectors}个行业。\n\n如果这些信息不足以回答问题，请使用工具获取更多数据。`,
+        content: `?????????????????\n\n${combinedContext}\n\n---\n??????? ${stats.total} ?????? ${stats.categories} ????${stats.sectors} ????\n\n??????????????????????????`,
       })
       aiMessages.push({
         role: 'assistant',
-        content: '好的，我已了解这些情报内容。如果需要更多数据，我会使用工具获取。请问有什么需要分析的？',
+        content: '????????????????????????????????????????',
       })
     }
 
@@ -1109,11 +1279,11 @@ export async function POST(request: NextRequest) {
     const maxTokens = mode === 'basic' ? 800 : 2000
     const canUseTools = enable_tools && supportsToolCalling(baseUrl)
 
-    // ========== Plan C: Multi-turn tool calling loop ==========
+    // Multi-turn tool-calling loop for the fallback path.
     const toolResults: ToolResult[] = []
     const sources = [
       ...relevantIntel.map(i => ({ id: i.id, title: i.title, type: 'database' as const })),
-      ...annualReportResult.sources.map(s => ({ id: s.file_path, title: `${s.company_name}(${s.stock_code})年报`, type: 'annual_report' as const }))
+      ...annualReportResult.sources.map(s => ({ id: s.file_path, title: `${s.company_name}(${s.stock_code})??`, type: 'annual_report' as const }))
     ]
 
     let finalResponse = ''
@@ -1123,7 +1293,7 @@ export async function POST(request: NextRequest) {
     while (iteration < maxIterations) {
       iteration++
 
-      const requestBody: any = {
+      const requestBody: ChatCompletionRequestBody = {
         model,
         messages: aiMessages,
         temperature: 0.5,
@@ -1151,7 +1321,7 @@ export async function POST(request: NextRequest) {
         throw new Error(`AI API error: ${response.status}`)
       }
 
-      const data = await response.json() as any
+      const data = await response.json() as ChatCompletionResponse
       const message = data.choices?.[0]?.message
 
       if (!message) {
@@ -1160,7 +1330,7 @@ export async function POST(request: NextRequest) {
 
       // Check if LLM wants to call tools
       if (message.tool_calls && message.tool_calls.length > 0) {
-        console.log(`[chat] Tool calls requested: ${message.tool_calls.map((t: any) => t.function.name).join(', ')}`)
+        console.log(`[chat] Tool calls requested: ${message.tool_calls.map((t) => t.function.name).join(', ')}`)
 
         // Add assistant message with tool calls
         aiMessages.push({

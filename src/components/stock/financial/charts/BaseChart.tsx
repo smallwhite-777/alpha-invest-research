@@ -1,8 +1,8 @@
 'use client'
 
-import ReactECharts from 'echarts-for-react'
 import { useMemo } from 'react'
 import { registerThemes, getThemeName, CHART_COLORS } from '@/lib/chart-theme'
+import { SafeEChart } from '@/components/ui/SafeEChart'
 
 // 确保主题已注册
 registerThemes()
@@ -13,7 +13,7 @@ interface BaseChartProps {
   width?: number | string
   isDark?: boolean
   className?: string
-  onEvents?: Record<string, (params: any) => void>
+  onEvents?: Record<string, (params: unknown) => void>
   notMerge?: boolean
   lazyUpdate?: boolean
 }
@@ -59,14 +59,19 @@ export function BaseChart({
 
   return (
     <div className={`chart-container ${className}`} style={{ height, width }}>
-      <ReactECharts
-        option={mergedOption}
+      <SafeEChart
+        option={mergedOption as Record<string, unknown>}
         theme={themeName}
-        style={{ height: '100%', width: '100%' }}
-        opts={{ renderer: 'canvas' }}
+        height="100%"
+        width="100%"
         onEvents={onEvents}
         notMerge={notMerge}
         lazyUpdate={lazyUpdate}
+        fallback={
+          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+            财务图表暂时不可用
+          </div>
+        }
       />
     </div>
   )

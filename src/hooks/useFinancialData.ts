@@ -12,16 +12,21 @@ import type {
   GrowthResponse,
   RiskResponse,
   PeerComparisonResponse,
-  HistoricalSnapshot
+  HistoricalSnapshot,
+  ValuationApiResponse
 } from '@/types/financial'
 
 // ==================== 基础配置 ====================
 
 // 使用Next.js代理API路径，避免CORS问题
 const API_BASE = '/api/financial'
+const REQUEST_TIMEOUT_MS = 15000
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  const res = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId))
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -37,12 +42,12 @@ const fetcher = async (url: string) => {
 
 // 实时数据缓存配置（股价、行情）
 export const realtimeCacheConfig: SWRConfiguration = {
-  revalidateOnFocus: true,
+  revalidateOnFocus: false,
   revalidateOnReconnect: true,
-  refreshInterval: 5000,        // 5秒自动刷新
-  dedupingInterval: 3000,       // 3秒去重
-  errorRetryCount: 3,
-  errorRetryInterval: 2000,
+  refreshInterval: 15000,
+  dedupingInterval: 10000,
+  shouldRetryOnError: false,
+  errorRetryCount: 1,
 }
 
 // 半静态数据缓存配置（财务指标、估值）
@@ -50,7 +55,8 @@ export const semiStaticCacheConfig: SWRConfiguration = {
   revalidateOnFocus: false,     // 焦点不刷新
   revalidateOnReconnect: false,
   dedupingInterval: 3600000,    // 1小时去重
-  errorRetryCount: 2,
+  shouldRetryOnError: false,
+  errorRetryCount: 1,
 }
 
 // 静态数据缓存配置（历史财务、年报）
@@ -59,6 +65,7 @@ export const staticCacheConfig: SWRConfiguration = {
   revalidateOnReconnect: false,
   dedupingInterval: 86400000,   // 24小时去重
   revalidateIfStale: false,     // 过期也不重新验证
+  shouldRetryOnError: false,
   errorRetryCount: 1,
 }
 
@@ -68,7 +75,7 @@ const defaultSWRConfig = semiStaticCacheConfig
 // ==================== 批量查询优化 ====================
 
 interface BatchFinancialResult {
-  [module: string]: any
+  [module: string]: unknown
 }
 
 /**
@@ -162,14 +169,14 @@ export function useDCF(stockCode: string, initialParams?: DCFParams) {
     if (!stockCode) return null
 
     try {
-      const res = await fetch(
-        `${API_BASE}/dcf/${encodeURIComponent(stockCode)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newParams)
-        }
-      )
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      const res = await fetch(`${API_BASE}/dcf/${encodeURIComponent(stockCode)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newParams),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId))
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return res.json()
     } catch (err) {
@@ -191,7 +198,7 @@ export function useDCF(stockCode: string, initialParams?: DCFParams) {
     if (baseData && !adjustedData) {
       setAdjustedData(baseData)
     }
-  }, [baseData])
+  }, [baseData, adjustedData])
 
   return {
     dcfData: adjustedData || baseData,
@@ -246,7 +253,7 @@ export function useRisk(stockCode: string) {
 
 // 估值指标 - 使用单独的代理路径
 export function useValuation(stockCode: string) {
-  const { data, error, isLoading } = useSWR<any>(
+  const { data, error, isLoading } = useSWR<ValuationApiResponse>(
     stockCode ? `/api/stock/valuation/${encodeURIComponent(stockCode)}` : null,
     fetcher,
     defaultSWRConfig

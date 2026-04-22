@@ -9,6 +9,8 @@
     "build:low-memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "import:wsj": "tsx scripts/import-wsj-events.ts",
+    "read:wsj": "tsx scripts/read-wsj-and-save.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

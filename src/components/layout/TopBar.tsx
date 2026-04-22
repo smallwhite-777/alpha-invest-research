@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Search, Bell, Sun, Moon, Plus, Sparkles, X, Home, Shield, BarChart3, Globe, Newspaper, FileText } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,7 +13,7 @@ import { NAV_ITEMS } from '@/lib/constants'
 import { LogoFlower } from '@/components/ui/LogoFlower'
 import { LogoWordmark } from '@/components/ui/LogoWordmark'
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Home, Shield, BarChart3, Globe, Newspaper, FileText, Search,
 }
 
@@ -56,7 +57,7 @@ interface SearchResult {
   title: string
   description?: string
   url: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -207,35 +208,40 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
 
 export function TopBar() {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
   const [stocks, setStocks] = useState<StockTicker[]>([])
 
-  useEffect(() => setMounted(true), [])
-
   useEffect(() => {
-    fetchStocks()
-    const interval = setInterval(fetchStocks, 60000)
-    return () => clearInterval(interval)
-  }, [])
+    let active = true
 
-  const fetchStocks = async () => {
-    try {
-      const res = await fetch('/api/stock/hot?count=15')
-      const data = await res.json()
-      if (data.stocks) setStocks(data.stocks)
-    } catch (error) {
-      console.error('Failed to fetch stocks:', error)
+    const loadStocks = async () => {
+      try {
+        const res = await fetch('/api/stock/hot?count=15')
+        const data = await res.json()
+        if (active && data.stocks) setStocks(data.stocks)
+      } catch (error) {
+        console.error('Failed to fetch stocks:', error)
+      }
     }
-  }
+
+    void loadStocks()
+    const interval = setInterval(() => {
+      void loadStocks()
+    }, 60000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [])
 
   return (
     <header className="bg-surface-low shrink-0">
       {/* Single row: Logo + Nav + Ticker + Actions */}
-      <div className="flex h-12 items-center">
+      <div className="flex h-14 items-center">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 px-5 shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 px-5 py-1 shrink-0">
           <LogoFlower className="w-6 h-6 shrink-0 text-foreground" />
           <LogoWordmark className="h-4 shrink-0 text-foreground" />
         </Link>
@@ -283,14 +289,12 @@ export function TopBar() {
             <span className="hidden sm:inline text-xs">搜索</span>
           </button>
 
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-          )}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2 text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
 
           <button className="p-2 text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground">
             <Bell className="h-4 w-4" />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getIntelligenceDetailById } from '@/lib/intelligence/services/get-intelligence-detail'
 
 // GET /api/intelligence/[id] - Get single intelligence
 export async function GET(
@@ -9,15 +10,7 @@ export async function GET(
   const { id } = await params
 
   try {
-    const intelligence = await prisma.intelligence.findUnique({
-      where: { id },
-      include: {
-        tags: { include: { tag: true } },
-        sectors: true,
-        stocks: true,
-        attachments: true,
-      },
-    })
+    const intelligence = await getIntelligenceDetailById(id)
 
     if (!intelligence) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })

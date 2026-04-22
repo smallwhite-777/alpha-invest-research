@@ -22,7 +22,6 @@ export { GrowthAnalysis } from './GrowthAnalysis/GrowthAnalysis'
 export { FinancialHealth } from './FinancialHealth/FinancialHealth'
 
 // Module 7: Visualization Controls
-export { TimeTravelSlider } from './VisualizationControls/TimeTravelSlider'
 export { PeerComparisonSelector } from './VisualizationControls/PeerComparisonSelector'
 export { PDFExportButton } from './VisualizationControls/PDFExportButton'
 

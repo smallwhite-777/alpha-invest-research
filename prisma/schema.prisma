@@ -28,11 +28,134 @@ model Intelligence {
   @@index([createdAt])
 }
 
+model Source {
+  id            String                 @id @default(cuid())
+  code          String                 @unique
+  name          String
+  type          String
+  isEnabled     Boolean                @default(true)
+  configJson    String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  ingestionJobs IngestionJob[]
+  rawDocuments  RawDocument[]
+  documents     IntelligenceDocument[]
+}
+
+model IngestionJob {
+  id              String        @id @default(cuid())
+  sourceId        String
+  jobType         String
+  status          String
+  startedAt       DateTime      @default(now())
+  finishedAt      DateTime?
+  inputCursor     String?
+  outputCursor    String?
+  totalFetched    Int           @default(0)
+  totalNormalized Int           @default(0)
+  totalInserted   Int           @default(0)
+  totalSkipped    Int           @default(0)
+  errorMessage    String?
+  source          Source        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  rawDocuments    RawDocument[]
+
+  @@index([sourceId, startedAt])
+  @@index([status])
+}
+
+model RawDocument {
+  id             String                 @id @default(cuid())
+  sourceId       String
+  jobId          String?
+  externalId     String
+  externalUrl    String?
+  publishedAt    DateTime?
+  capturedAt     DateTime
+  titleRaw       String?
+  summaryRaw     String?
+  contentRaw     String?
+  authorRaw      String?
+  languageRaw    String?
+  rawPayload     String
+  rawHash        String?
+  parseStatus    String                 @default("parsed")
+  createdAt      DateTime               @default(now())
+  source         Source                 @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  job            IngestionJob?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  documents      IntelligenceDocument[]
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId, publishedAt])
+}
+
+model IntelligenceEvent {
+  id               String                 @id @default(cuid())
+  canonicalTitle   String
+  canonicalSummary String?
+  category         String
+  importance       Int                    @default(3)
+  firstSeenAt      DateTime
+  lastSeenAt       DateTime
+  sourceCount      Int                    @default(1)
+  documentCount    Int                    @default(1)
+  status           String                 @default("active")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  documents        IntelligenceDocument[]
+
+  @@index([lastSeenAt])
+  @@index([category, importance])
+}
+
+model IntelligenceDocument {
+  id            String             @id @default(cuid())
+  sourceId      String
+  rawDocumentId String?
+  eventId       String?
+  title         String
+  summary       String?
+  content       String
+  category      String
+  importance    Int                @default(3)
+  publishedAt   DateTime?
+  capturedAt    DateTime
+  authorName    String?
+  language      String?
+  region        String?
+  isTranslated  Boolean            @default(false)
+  dedupeKey     String?
+  qualityScore  Float?
+  metadataJson  String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  source        Source             @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  rawDocument   RawDocument?       @relation(fields: [rawDocumentId], references: [id], onDelete: SetNull)
+  event         IntelligenceEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  tags          DocumentTag[]
+  sectors       DocumentSector[]
+  entities      DocumentEntity[]
+
+  @@index([sourceId, publishedAt])
+  @@index([eventId])
+  @@index([category, importance])
+  @@index([dedupeKey])
+}
+
 model Tag {
   id            String            @id @default(cuid())
   name          String            @unique
   color         String?
   intelligences IntelligenceTag[]
+  documents     DocumentTag[]
+}
+
+model DocumentTag {
+  documentId String
+  tagId      String
+  document   IntelligenceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag        Tag                  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
 }
 
 model IntelligenceTag {
@@ -44,6 +167,16 @@ model IntelligenceTag {
   @@id([intelligenceId, tagId])
 }
 
+model DocumentSector {
+  documentId String
+  sectorCode String
+  sectorName String
+  document   IntelligenceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, sectorCode])
+  @@index([sectorCode])
+}
+
 model IntelligenceSector {
   intelligenceId String
   sectorCode     String
@@ -52,6 +185,30 @@ model IntelligenceSector {
 
   @@id([intelligenceId, sectorCode])
   @@index([sectorCode])
+}
+
+model Entity {
+  id             String           @id @default(cuid())
+  type           String
+  name           String
+  normalizedName String
+  ticker         String?
+  exchange       String?
+  metadataJson   String?
+  documents      DocumentEntity[]
+
+  @@index([type, normalizedName])
+}
+
+model DocumentEntity {
+  documentId String
+  entityId   String
+  role       String?
+  document   IntelligenceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  entity     Entity               @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, entityId])
+  @@index([entityId])
 }
 
 model IntelligenceStock {

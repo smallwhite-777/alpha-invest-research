@@ -5,6 +5,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 interface ClientErrorBoundaryProps {
   children: ReactNode
   fallback?: ReactNode
+  resetKey?: string
 }
 
 interface ClientErrorBoundaryState {
@@ -25,6 +26,12 @@ export class ClientErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Client render error captured:', error, errorInfo)
+  }
+
+  componentDidUpdate(prevProps: ClientErrorBoundaryProps) {
+    if (this.state.hasError && this.props.resetKey && this.props.resetKey !== prevProps.resetKey) {
+      this.setState({ hasError: false })
+    }
   }
 
   render() {
