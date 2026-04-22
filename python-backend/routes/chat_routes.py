@@ -196,6 +196,8 @@ def handle_query():
             "context_summary": assistant_context.get("context_summary"),
             "recent_messages": assistant_context.get("recent_messages", []),
             "requested_skill": assistant_context.get("requested_skill"),
+            "deep_mode_stage": assistant_context.get("deep_mode_stage"),
+            "writing_outline": assistant_context.get("writing_outline"),
         }
         return jsonify(engine.run_assistant(assistant_payload))
 

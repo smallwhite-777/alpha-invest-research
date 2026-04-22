@@ -267,6 +267,8 @@ class WorkflowEngine:
                 context_summary=query_context.get("context_summary"),
                 recent_messages=query_context.get("recent_messages", []) or [],
                 requested_skill=query_context.get("requested_skill"),
+                deep_mode_stage=query_context.get("deep_mode_stage"),
+                writing_outline=query_context.get("writing_outline"),
             )
 
             time_ctx = self._run_step(

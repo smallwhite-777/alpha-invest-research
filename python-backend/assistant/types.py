@@ -15,6 +15,8 @@ class QueryContext:
     context_summary: Optional[str] = None
     recent_messages: List[Dict[str, str]] = field(default_factory=list)
     requested_skill: Optional[str] = None
+    deep_mode_stage: Optional[str] = None
+    writing_outline: Optional[str] = None
 
 
 @dataclass
