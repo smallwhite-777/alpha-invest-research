@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, Database, CheckCircle2, Clock, XCircle, Loader } from 'lucide-react'
+import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, Database, CheckCircle2, Clock, XCircle, Loader, GripVertical, FilePenLine, Newspaper, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 
@@ -57,6 +57,9 @@ interface Message {
   sources?: { id: string; title: string; type?: string }[]
   steps?: { name: string; status: string; duration_ms?: number; error?: string }[]  // 思维链条步骤
   total_duration_ms?: number  // 总耗时
+  skill?: string
+  warnings?: string[]
+  evidence_summary?: Record<string, number>
   timestamp: number
   isLoading?: boolean  // 新增：标记是否正在加载
 }
@@ -75,6 +78,15 @@ interface ValuationScenarios {
   bull?: string
   base?: string
   bear?: string
+}
+
+interface DeepDraftRequest {
+  chatMessages: { role: 'user' | 'assistant'; content: string }[]
+  contextSummary: string
+  contextState?: ConversationContextState
+  recentContextMessages: { role: 'user' | 'assistant'; content: string }[]
+  question: string
+  requestedSkill?: string
 }
 
 const CLEAN_STOPWORDS = new Set([
@@ -601,6 +613,104 @@ function ContextStateCard({ contextState, contextSummary }: { contextState?: Con
   )
 }
 
+function AssistantMetaCard({
+  skill,
+  warnings,
+  evidenceSummary,
+}: {
+  skill?: string
+  warnings?: string[]
+  evidenceSummary?: Record<string, number>
+}) {
+  const entries = evidenceSummary ? Object.entries(evidenceSummary) : []
+  if (!skill && (!warnings || warnings.length === 0) && entries.length === 0) return null
+
+  return (
+    <div className="bg-surface-high px-3 py-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {skill ? (
+          <span className="inline-flex items-center gap-1 bg-primary/10 px-2 py-1 text-xs text-primary">
+            <Brain className="h-3 w-3" />
+            Skill: {skill}
+          </span>
+        ) : null}
+        {entries.map(([key, value]) => (
+          <span key={key} className="inline-flex items-center gap-1 bg-surface-low px-2 py-1 text-xs text-muted-foreground">
+            <Database className="h-3 w-3" />
+            {key}: {value}
+          </span>
+        ))}
+      </div>
+      {warnings && warnings.length > 0 ? (
+        <div className="space-y-1">
+          {warnings.map((warning, index) => (
+            <div key={`${warning}-${index}`} className="flex items-start gap-2 text-xs text-amber-600">
+              <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{warning}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DeepWorkspacePanel({
+  title,
+  icon,
+  width,
+  side,
+  rightOffset = 0,
+  children,
+  onResizeStart,
+  onClose,
+}: {
+  title: string
+  icon: ReactNode
+  width: number
+  side: 'middle' | 'right'
+  rightOffset?: number
+  children: ReactNode
+  onResizeStart: (event: React.MouseEvent, side: 'middle' | 'right') => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className={cn(
+        'fixed top-0 bottom-0 z-40 border-l border-border bg-background shadow-2xl flex flex-col',
+        side === 'right' ? 'right-0' : ''
+      )}
+      style={{
+        width,
+        right: side === 'right' ? 0 : rightOffset,
+      }}
+    >
+      <button
+        onMouseDown={(event) => onResizeStart(event, side)}
+        className="absolute left-0 top-0 bottom-0 w-3 -translate-x-1/2 cursor-col-resize flex items-center justify-center text-muted-foreground/60 hover:text-foreground"
+        title="拖拽调整宽度"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 shrink-0 bg-surface-low">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          {icon}
+          <span>{title}</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function getValuationScenarioValue(scenarios: string | ValuationScenarios | undefined, key: keyof ValuationScenarios) {
   if (!scenarios || typeof scenarios === 'string') return undefined
   return scenarios[key]
@@ -895,6 +1005,15 @@ export default function AnalyzePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showModeDropdown, setShowModeDropdown] = useState(false)
+  const [outlinePanelOpen, setOutlinePanelOpen] = useState(false)
+  const [articlePanelOpen, setArticlePanelOpen] = useState(false)
+  const [outlineDraft, setOutlineDraft] = useState('')
+  const [articleDraft, setArticleDraft] = useState('')
+  const [outlinePanelWidth, setOutlinePanelWidth] = useState(420)
+  const [articlePanelWidth, setArticlePanelWidth] = useState(520)
+  const [resizingPanel, setResizingPanel] = useState<'middle' | 'right' | null>(null)
+  const [deepDraftRequest, setDeepDraftRequest] = useState<DeepDraftRequest | null>(null)
+  const [isGeneratingArticle, setIsGeneratingArticle] = useState(false)
   const modeDropdownRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeRequestRef = useRef<AbortController | null>(null)
@@ -943,6 +1062,34 @@ export default function AnalyzePage() {
       activeRequestRef.current?.abort()
     }
   }, [])
+
+  useEffect(() => {
+    if (!resizingPanel) return
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const viewportWidth = window.innerWidth
+      const minWidth = resizingPanel === 'right' ? 420 : 360
+      const maxWidth = resizingPanel === 'right' ? 920 : 780
+      const siblingOffset = resizingPanel === 'middle' && articlePanelOpen ? articlePanelWidth : 0
+      const nextWidth = Math.max(minWidth, Math.min(maxWidth, viewportWidth - event.clientX - siblingOffset))
+
+      if (resizingPanel === 'right') {
+        setArticlePanelWidth(nextWidth)
+      } else {
+        setOutlinePanelWidth(nextWidth)
+      }
+    }
+
+    const handleMouseUp = () => setResizingPanel(null)
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [articlePanelOpen, articlePanelWidth, resizingPanel])
 
   useEffect(() => {
     if (!currentConversationId) return
@@ -1002,6 +1149,11 @@ export default function AnalyzePage() {
     setPendingFiles([])
     setInputText('')
     setError(null)
+    setOutlinePanelOpen(false)
+    setArticlePanelOpen(false)
+    setOutlineDraft('')
+    setArticleDraft('')
+    setDeepDraftRequest(null)
   }, [conversations, saveConversations])
 
   // 加载对话
@@ -1011,6 +1163,11 @@ export default function AnalyzePage() {
     setPendingFiles([])
     setInputText('')
     setError(null)
+    setOutlinePanelOpen(false)
+    setArticlePanelOpen(false)
+    setOutlineDraft('')
+    setArticleDraft('')
+    setDeepDraftRequest(null)
   }, [])
 
   // 删除对话
@@ -1021,6 +1178,11 @@ export default function AnalyzePage() {
       setCurrentConversationId(null)
       setMessages([])
       setPendingFiles([])
+      setOutlinePanelOpen(false)
+      setArticlePanelOpen(false)
+      setOutlineDraft('')
+      setArticleDraft('')
+      setDeepDraftRequest(null)
     }
   }, [conversations, currentConversationId, saveConversations])
 
@@ -1051,6 +1213,148 @@ export default function AnalyzePage() {
   const removePendingFile = (id: string) => {
     setPendingFiles((prev) => prev.filter((f) => f.id !== id))
   }
+
+  const buildDeepDraftRequest = useCallback((question: string): DeepDraftRequest => {
+    const chatMessages: { role: 'user' | 'assistant'; content: string }[] = []
+
+    for (const msg of messages.slice(-MAX_CHAT_HISTORY_MESSAGES)) {
+      if (msg.role === 'user' && msg.content && !msg.isLoading) {
+        chatMessages.push({ role: 'user', content: truncateText(msg.content, MAX_CHAT_MESSAGE_LENGTH) })
+      } else if (msg.role === 'assistant' && msg.content && !msg.isLoading) {
+        chatMessages.push({ role: 'assistant', content: truncateText(msg.content, MAX_CHAT_MESSAGE_LENGTH) })
+      }
+    }
+
+    chatMessages.push({ role: 'user', content: truncateText(question, MAX_CHAT_MESSAGE_LENGTH) })
+
+    const recentContextMessages = messages
+      .filter((msg) => !msg.isLoading && msg.content)
+      .slice(-MAX_CONTEXT_TURNS)
+      .map((msg) => ({
+        role: msg.role,
+        content: summarizeMessageContent(msg.content || '', msg.role === 'user' ? 200 : 260),
+      }))
+
+    const currentConversation = currentConversationId
+      ? conversations.find((conversation) => conversation.id === currentConversationId)
+      : null
+
+    return {
+      chatMessages,
+      recentContextMessages,
+      contextSummary: currentConversation?.contextSummary || buildStableConversationSummary(messages),
+      contextState: buildStableConversationContextState(messages, currentConversation?.contextState),
+      question,
+    }
+  }, [conversations, currentConversationId, messages])
+
+  const requestAssistant = useCallback(async (payload: {
+    request: DeepDraftRequest
+    mode?: 'basic' | 'deep'
+    stage?: 'outline' | 'article' | 'answer'
+    writingOutline?: string
+    signal: AbortSignal
+  }) => {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: payload.request.chatMessages,
+        mode: payload.mode ?? analysisMode,
+        use_workflow: true,
+        context_summary: payload.request.contextSummary,
+        context_state: payload.request.contextState,
+        recent_context_messages: payload.request.recentContextMessages,
+        requested_skill: payload.request.requestedSkill,
+        deep_mode_stage: payload.stage ?? 'answer',
+        writing_outline: payload.writingOutline,
+      }),
+      signal: payload.signal,
+    })
+
+    let data
+    try {
+      const text = await response.text()
+      data = text ? JSON.parse(text) : {}
+    } catch (parseError) {
+      console.error('[assistant] JSON parse error:', parseError)
+      throw new Error('服务端返回格式错误')
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || '智能分析请求失败')
+    }
+
+    return data as AssistantApiResponse
+  }, [analysisMode])
+
+  const handleConfirmDeepOutline = useCallback(async () => {
+    if (!deepDraftRequest || !outlineDraft.trim() || isGeneratingArticle) return
+
+    setIsGeneratingArticle(true)
+    setError(null)
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeRequestRef.current = controller
+
+    const loadingMessageId = (Date.now() + 1).toString()
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: loadingMessageId,
+        role: 'assistant',
+        isLoading: true,
+        timestamp: Date.now(),
+      },
+    ])
+    setArticlePanelOpen(true)
+    setArticleDraft('')
+
+    try {
+      const data = await requestAssistant({
+        request: deepDraftRequest,
+        mode: 'deep',
+        stage: 'article',
+        writingOutline: outlineDraft,
+        signal: controller.signal,
+      })
+
+      setArticleDraft(data.result || '')
+      setMessages((prev) => prev.map((msg) =>
+        msg.id === loadingMessageId
+          ? {
+              ...msg,
+              isLoading: false,
+              content: data.result,
+              skill: data.skill,
+              warnings: data.warnings || [],
+              evidence_summary: data.evidence_summary || {},
+              sources: data.sources || [],
+              steps: data.steps || [],
+              total_duration_ms: data.total_duration_ms,
+            }
+          : msg
+      ))
+    } catch (err) {
+      console.error('[handleConfirmDeepOutline] Error:', err)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setMessages((prev) => prev.filter((msg) => msg.id !== loadingMessageId))
+        return
+      }
+
+      setError(err instanceof Error ? err.message : '生成深度文章时出现错误')
+      setMessages((prev) => prev.map((msg) =>
+        msg.id === loadingMessageId
+          ? { ...msg, isLoading: false, content: '生成深度文章失败：' + (err instanceof Error ? err.message : '未知错误') }
+          : msg
+      ))
+    } finally {
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null
+      }
+      setIsGeneratingArticle(false)
+    }
+  }, [deepDraftRequest, isGeneratingArticle, outlineDraft, requestAssistant])
 
   // 分析函数（支持文件分析和纯文字聊天）
   const handleAnalyze = async () => {
@@ -1222,6 +1526,155 @@ export default function AnalyzePage() {
       setIsAnalyzing(false)
     }
   }
+
+  const handleDeepAwareAnalyze = async () => {
+    const trimmedInput = inputText.trim()
+
+    if (!trimmedInput && pendingFiles.length === 0) {
+      return
+    }
+
+    setIsAnalyzing(true)
+    setError(null)
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    activeRequestRef.current = controller
+
+    const userMessageId = Date.now().toString()
+    const loadingMessageId = (Date.now() + 1).toString()
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: userMessageId,
+        role: 'user',
+        content: trimmedInput || undefined,
+        files: pendingFiles.length > 0 ? pendingFiles.map((f) => ({ name: f.name, size: f.size })) : undefined,
+        analysisMode,
+        timestamp: Date.now(),
+      },
+      {
+        id: loadingMessageId,
+        role: 'assistant',
+        isLoading: true,
+        timestamp: Date.now(),
+      },
+    ])
+    setInputText('')
+
+    try {
+      if (pendingFiles.length > 0) {
+        const formData = new FormData()
+        pendingFiles.forEach((file) => {
+          formData.append('files', file.file)
+        })
+        formData.append('mode', analysisMode)
+
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+
+        let data
+        try {
+          const text = await response.text()
+          data = text ? JSON.parse(text) : {}
+        } catch (parseError) {
+          console.error('[handleDeepAwareAnalyze] JSON parse error:', parseError)
+          throw new Error('服务器响应格式错误')
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || '分析请求失败')
+        }
+
+        setMessages((prev) => prev.map((msg) =>
+          msg.id === loadingMessageId
+            ? { ...msg, isLoading: false, result: data.result, analysisMode }
+            : msg
+        ))
+        setPendingFiles([])
+        return
+      }
+
+      const draftRequest = buildDeepDraftRequest(trimmedInput)
+
+      if (analysisMode === 'deep') {
+          const data = await requestAssistant({
+            request: draftRequest,
+            mode: 'deep',
+            stage: 'outline',
+            signal: controller.signal,
+          })
+
+        setDeepDraftRequest(draftRequest)
+        setOutlineDraft(data.result || '')
+        setArticleDraft('')
+        setOutlinePanelOpen(true)
+        setArticlePanelOpen(false)
+
+        setMessages((prev) => prev.map((msg) =>
+          msg.id === loadingMessageId
+            ? {
+                ...msg,
+                isLoading: false,
+                content: '已生成深度分析写作框架。你可以先在右侧编辑结构、补充观点或删改章节，然后点击“确认生成文章”。',
+                skill: data.skill,
+                warnings: data.warnings || [],
+                evidence_summary: data.evidence_summary || {},
+                sources: data.sources || [],
+                steps: data.steps || [],
+                total_duration_ms: data.total_duration_ms,
+              }
+            : msg
+        ))
+        return
+      }
+
+      const data = await requestAssistant({
+        request: draftRequest,
+        stage: 'answer',
+        signal: controller.signal,
+      })
+
+      setMessages((prev) => prev.map((msg) =>
+        msg.id === loadingMessageId
+          ? {
+              ...msg,
+              isLoading: false,
+              content: data.result,
+              skill: data.skill,
+              warnings: data.warnings || [],
+              evidence_summary: data.evidence_summary || {},
+              sources: data.sources || [],
+              steps: data.steps || [],
+              total_duration_ms: data.total_duration_ms,
+            }
+          : msg
+      ))
+    } catch (err) {
+      console.error('[handleDeepAwareAnalyze] Error:', err)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setMessages((prev) => prev.filter((msg) => msg.id !== loadingMessageId))
+        return
+      }
+
+      setError(err instanceof Error ? err.message : '请求过程中出现错误')
+      setMessages((prev) => prev.map((msg) =>
+        msg.id === loadingMessageId
+          ? { ...msg, isLoading: false, content: 'Request failed: ' + (err instanceof Error ? err.message : '未知错误') }
+          : msg
+      ))
+    } finally {
+      if (activeRequestRef.current === controller) {
+        activeRequestRef.current = null
+      }
+      setIsAnalyzing(false)
+    }
+  }
+
+  void handleAnalyze
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B'
@@ -1492,6 +1945,11 @@ export default function AnalyzePage() {
                         {message.steps && message.steps.length > 0 && (
                           <ThinkingChain steps={message.steps} totalDuration={message.total_duration_ms} />
                         )}
+                        <AssistantMetaCard
+                          skill={message.skill}
+                          warnings={message.warnings}
+                          evidenceSummary={message.evidence_summary}
+                        />
                         <div className="bg-surface-low px-5 py-4">
                           <FormattedMessage content={message.content} />
                         </div>
@@ -1642,7 +2100,7 @@ export default function AnalyzePage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      handleAnalyze()
+                      handleDeepAwareAnalyze()
                     }
                   }}
                   placeholder="输入问题或上传文件..."
@@ -1653,7 +2111,7 @@ export default function AnalyzePage() {
 
                 {/* Send Button */}
                 <button
-                  onClick={handleAnalyze}
+                  onClick={handleDeepAwareAnalyze}
                   disabled={isAnalyzing || (!inputText.trim() && pendingFiles.length === 0)}
                   className="flex h-9 w-9 shrink-0 items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -1682,6 +2140,79 @@ export default function AnalyzePage() {
             </p>
           </div>
         </div>
+
+        {outlinePanelOpen && (
+          <DeepWorkspacePanel
+            title="写作框架"
+            icon={<FilePenLine className="h-4 w-4 text-primary" />}
+            width={outlinePanelWidth}
+            side="middle"
+            rightOffset={articlePanelOpen ? articlePanelWidth : 0}
+            onResizeStart={(_, side) => setResizingPanel(side)}
+            onClose={() => setOutlinePanelOpen(false)}
+          >
+            <div className="flex h-full flex-col">
+              <div className="border-b border-border bg-surface-low px-4 py-3 text-xs text-muted-foreground leading-5">
+                先把文章结构改成你想要的版本。可以补充章节、删减提纲、加入重点论据或限定写作角度。
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <textarea
+                  value={outlineDraft}
+                  onChange={(event) => setOutlineDraft(event.target.value)}
+                  className="min-h-full w-full resize-none bg-surface-high p-4 text-sm leading-6 text-foreground outline-none"
+                  placeholder="深度分析写作框架会显示在这里"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 bg-background">
+                <div className="text-xs text-muted-foreground">
+                  当前模式：先框架，后成文
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setOutlinePanelOpen(false)}
+                    className="px-3 py-2 text-sm text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
+                  >
+                    暂时收起
+                  </button>
+                  <button
+                    onClick={handleConfirmDeepOutline}
+                    disabled={!outlineDraft.trim() || isGeneratingArticle}
+                    className="inline-flex items-center gap-2 bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                  >
+                    {isGeneratingArticle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Newspaper className="h-4 w-4" />}
+                    确认生成文章
+                  </button>
+                </div>
+              </div>
+            </div>
+          </DeepWorkspacePanel>
+        )}
+
+        {articlePanelOpen && (
+          <DeepWorkspacePanel
+            title="深度分析文章"
+            icon={<Newspaper className="h-4 w-4 text-primary" />}
+            width={articlePanelWidth}
+            side="right"
+            onResizeStart={(_, side) => setResizingPanel(side)}
+            onClose={() => setArticlePanelOpen(false)}
+          >
+            <div className="flex h-full flex-col">
+              <div className="border-b border-border bg-surface-low px-4 py-3 text-xs text-muted-foreground leading-5">
+                这里展示基于右侧写作框架生成的完整深度投研文章，可继续复制其中观点回到对话里追问。
+              </div>
+              <div className="flex-1 overflow-auto bg-background px-5 py-4">
+                {articleDraft ? (
+                  <MarkdownRenderer content={articleDraft} />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    {isGeneratingArticle ? '正在生成深度分析文章…' : '确认框架后，这里会生成完整文章'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DeepWorkspacePanel>
+        )}
       </div>
     </div>
   )

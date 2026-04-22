@@ -175,6 +175,7 @@ def handle_query():
 
     query = data['query']
     provider = data.get('provider')
+    assistant_context = data.get('assistant_context')
 
     # Create workflow engine
     engine = create_engine(
@@ -182,7 +183,23 @@ def handle_query():
         on_progress=lambda step, status: print(f"[{step}] {status}")
     )
 
-    # Run workflow
+    if assistant_context:
+        assistant_payload = {
+            "question": query,
+            "page_type": assistant_context.get("page_type"),
+            "entity_type": assistant_context.get("entity_type"),
+            "stock_code": assistant_context.get("stock_code"),
+            "company_name": assistant_context.get("company_name"),
+            "indicator_codes": assistant_context.get("indicator_codes", []),
+            "compare_targets": assistant_context.get("compare_targets", []),
+            "time_range": assistant_context.get("time_range"),
+            "context_summary": assistant_context.get("context_summary"),
+            "recent_messages": assistant_context.get("recent_messages", []),
+            "requested_skill": assistant_context.get("requested_skill"),
+        }
+        return jsonify(engine.run_assistant(assistant_payload))
+
+    # Run legacy workflow
     result = engine.run(query)
 
     return jsonify(format_workflow_result(result))

@@ -23,6 +23,11 @@ from agents.time_scheduler import TimeSchedulerAgent, create_time_aware_context
 from agents.time_types import TimeContext
 from agents.time_service import time_service
 from llm.client import LLMClient, LLMResponse
+from assistant.types import QueryContext
+from assistant.evidence_broker import EvidenceBroker, infer_skill_from_intent
+from assistant.prompt_builder import AssistantPromptBuilder
+from assistant.formatter import AssistantFormatter
+from assistant.validator import AssistantValidator
 from config import (
     RESEARCH_REPORTS_DIR, NEWS_DIR, FINANCIAL_REPORTS_DIR, DAILY_QUOTE_DIR,
     MAX_CANDIDATE_FILES, MAX_READ_CHARS, SEARCH_TIMEOUT, MAX_RETURN_SNIPPETS
@@ -109,6 +114,10 @@ class WorkflowEngine:
 
         self.prompt_agent = PromptAgent()
         self.result_agent = ResultAgent()
+        self.assistant_broker = EvidenceBroker(self.search_agent)
+        self.assistant_prompt_builder = AssistantPromptBuilder()
+        self.assistant_formatter = AssistantFormatter()
+        self.assistant_validator = AssistantValidator()
 
         # Initialize LLM client
         self.llm_client = LLMClient(provider=llm_provider)
@@ -239,6 +248,115 @@ class WorkflowEngine:
 
         thread = threading.Thread(target=_run)
         thread.start()
+
+    def run_assistant(self, query_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Run the first-phase assistant orchestration flow."""
+        start_time = time.time()
+        self.current_steps = []
+
+        try:
+            query = QueryContext(
+                question=query_context.get("question", ""),
+                page_type=query_context.get("page_type"),
+                entity_type=query_context.get("entity_type"),
+                stock_code=query_context.get("stock_code"),
+                company_name=query_context.get("company_name"),
+                indicator_codes=query_context.get("indicator_codes", []) or [],
+                compare_targets=query_context.get("compare_targets", []) or [],
+                time_range=query_context.get("time_range"),
+                context_summary=query_context.get("context_summary"),
+                recent_messages=query_context.get("recent_messages", []) or [],
+                requested_skill=query_context.get("requested_skill"),
+            )
+
+            time_ctx = self._run_step(
+                "time_scheduling",
+                lambda: self.time_scheduler.parse_time_intent(query.question)
+            )
+            self.current_time_context = time_ctx
+            time_service.initialize(time_ctx)
+
+            intent_result = self._run_step(
+                "intent_recognition",
+                lambda: self.intent_agent.recognize(query.question)
+            )
+
+            skill_id = self._run_step(
+                "skill_selection",
+                lambda: infer_skill_from_intent(intent_result, query)
+            )
+
+            evidence_bundle = self._run_step(
+                "evidence_collection",
+                lambda: self.assistant_broker.collect(query, intent_result, skill_id)
+            )
+
+            system_prompt, user_prompt = self._run_step(
+                "prompt_building",
+                lambda: self.assistant_prompt_builder.build(query, evidence_bundle)
+            )
+
+            llm_response = self._run_step(
+                "llm_inference",
+                lambda: self.llm_client.chat_with_retry(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    max_retries=2,
+                    enable_web_search=False
+                )
+            )
+
+            assistant_result = self._run_step(
+                "result_formatting",
+                lambda: self.assistant_formatter.format(llm_response.content, skill_id, evidence_bundle)
+            )
+
+            warnings = self._run_step(
+                "validation",
+                lambda: self.assistant_validator.validate(assistant_result)
+            )
+            assistant_result.warnings = warnings
+
+            formatted_result = self.assistant_formatter.to_formatted_result(assistant_result)
+            total_duration = (time.time() - start_time) * 1000
+
+            return {
+                "status": "completed",
+                "result": {
+                    "content": formatted_result.content,
+                    "sources": formatted_result.sources,
+                    "metadata": formatted_result.metadata,
+                    "skill": skill_id,
+                    "warnings": warnings,
+                    "evidence_summary": assistant_result.metadata.get("evidence_summary", {}),
+                },
+                "steps": [
+                    {
+                        "name": step.name,
+                        "status": step.status,
+                        "duration_ms": step.duration_ms
+                    }
+                    for step in self.current_steps
+                ],
+                "total_duration_ms": total_duration,
+            }
+        except Exception as e:
+            total_duration = (time.time() - start_time) * 1000
+            logger.error(f"Assistant workflow failed: {e}")
+            return {
+                "status": "failed",
+                "error": str(e),
+                "steps": [
+                    {
+                        "name": step.name,
+                        "status": step.status,
+                        "duration_ms": step.duration_ms,
+                        "error": step.error
+                    }
+                    for step in self.current_steps
+                ],
+                "total_duration_ms": total_duration,
+            }
 
     def _run_step(
         self,

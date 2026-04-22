@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { suggestTemplate, getTemplateSystemPrompt } from '@/lib/ai/templates'
+import { buildAssistantContext } from '@/lib/assistant/context'
+import type { AssistantApiResponse } from '@/lib/assistant/types'
 import type { ValuationApiResponse } from '@/types/financial'
 
 // Python backend URL for annual report search
@@ -1036,7 +1038,7 @@ function buildWorkflowQuery(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { messages, mode = 'deep', enable_tools = true, use_workflow = true, context_summary, context_state, recent_context_messages } = body as {
+    const { messages, mode = 'deep', enable_tools = true, use_workflow = true, context_summary, context_state, recent_context_messages, requested_skill, deep_mode_stage, writing_outline } = body as {
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
       mode: 'basic' | 'deep'
       enable_tools?: boolean
@@ -1044,6 +1046,9 @@ export async function POST(request: NextRequest) {
       context_summary?: string
       context_state?: ConversationContextState
       recent_context_messages?: { role: 'user' | 'assistant'; content: string }[]
+      requested_skill?: string
+      deep_mode_stage?: 'outline' | 'article' | 'answer'
+      writing_outline?: string
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -1054,6 +1059,19 @@ export async function POST(request: NextRequest) {
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
     const question = lastUserMsg?.content || ''
     const workflowQuery = buildWorkflowQuery(question, context_summary, context_state, recent_context_messages)
+    const assistantContext = buildAssistantContext({
+      pageType: 'analyze',
+      entityType: context_state?.primaryCompany || context_state?.stockCodes?.length ? 'stock' : undefined,
+      stockCode: context_state?.stockCodes?.[0],
+      companyName: context_state?.primaryCompany,
+      compareTargets: context_state?.comparisonTargets || [],
+      timeRange: context_state?.timeRange,
+      contextSummary: context_summary,
+      recentMessages: recent_context_messages,
+      requestedSkill: requested_skill,
+      deepModeStage: deep_mode_stage ?? 'answer',
+      writingOutline: writing_outline,
+    })
 
     // Prefer the Python workflow when it is available.
     if (use_workflow) {
@@ -1063,7 +1081,24 @@ export async function POST(request: NextRequest) {
         const response = await fetch(`${PYTHON_BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: workflowQuery, provider: 'minimax' }),
+          body: JSON.stringify({
+            query: workflowQuery,
+            provider: 'minimax',
+            assistant_context: {
+              page_type: assistantContext.pageType,
+              entity_type: assistantContext.entityType,
+              stock_code: assistantContext.stockCode,
+              company_name: assistantContext.companyName,
+              indicator_codes: assistantContext.indicatorCodes,
+              compare_targets: assistantContext.compareTargets,
+              time_range: assistantContext.timeRange,
+              context_summary: assistantContext.contextSummary,
+              recent_messages: assistantContext.recentMessages,
+              requested_skill: assistantContext.requestedSkill,
+              deep_mode_stage: assistantContext.deepModeStage,
+              writing_outline: assistantContext.writingOutline,
+            },
+          }),
           signal: AbortSignal.timeout(60000) // 60 second timeout for LLM calls
         })
 
@@ -1074,15 +1109,31 @@ export async function POST(request: NextRequest) {
         const data = await response.json()
 
         if (data.status === 'completed') {
+          const assistantData = data as {
+            status: string
+            result?: {
+              content?: string
+              sources?: WorkflowSourceLike[]
+              skill?: string
+              warnings?: string[]
+              evidence_summary?: Record<string, number>
+            }
+            steps?: AssistantApiResponse['steps']
+            total_duration_ms?: number
+          }
+
           return NextResponse.json({
-            result: data.result?.content || '',
-            sources: (data.result?.sources || []).map((s: WorkflowSourceLike) => ({
+            result: assistantData.result?.content || '',
+            sources: (assistantData.result?.sources || []).map((s: WorkflowSourceLike) => ({
               id: s.stock_code || s.display || 'unknown',
               title: s.display || s.company_name || '????',
               type: s.type || 'database'
             })),
-            steps: data.steps || [],
-            total_duration_ms: data.total_duration_ms,
+            skill: assistantData.result?.skill,
+            warnings: assistantData.result?.warnings || [],
+            evidence_summary: assistantData.result?.evidence_summary || {},
+            steps: assistantData.steps || [],
+            total_duration_ms: assistantData.total_duration_ms,
             workflow: 'python_backend',
             context_used: Boolean(context_summary || context_state || recent_context_messages?.length)
           })
