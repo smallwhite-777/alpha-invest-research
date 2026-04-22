@@ -61,3 +61,24 @@ export interface MacroFilter {
     end: string
   }
 }
+
+export interface MacroForecastResult {
+  series: string
+  horizon: number
+  values: number[]
+  lower80: number[]
+  upper80: number[]
+  model: string
+  forecastDate?: string
+}
+
+export interface MacroScenarioResult {
+  series: string
+  scenarios: Record<string, { mean: number[] }>
+  timestamp?: string
+}
+
+export interface MacroSignalSummary {
+  file: string
+  content: unknown
+}

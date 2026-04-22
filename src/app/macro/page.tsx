@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MacroAIEntry } from '@/components/macro/MacroAIEntry'
 import type { MacroIndicator } from '@/types/macro'
 import { SafeEChart } from '@/components/ui/SafeEChart'
 
@@ -182,6 +183,21 @@ export default function MacroPage() {
               若卡片标记“源数据偏旧”，表示本地 macro-data 对该指标的最新可用样本尚未更新到当前月份/季度。
             </p>
           </div>
+          <MacroAIEntry
+            context={{
+              page: 'macro',
+              visibleIndicators: allCodes.split(','),
+              selectedComparison: {
+                leftCode: compareLeft,
+                rightCode: compareRight,
+              },
+              selectedCorrelation: {
+                codeX,
+                codeY,
+                lag: Number(lag),
+              },
+            }}
+          />
         </div>
 
         {indicatorsError ? <div className="mb-4 text-down">加载宏观指标失败，请稍后重试。</div> : null}
