@@ -243,7 +243,7 @@ export function TopBar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 px-5 py-1 shrink-0">
           <LogoFlower className="w-6 h-6 shrink-0 text-foreground" />
-          <LogoWordmark className="h-4 shrink-0 text-foreground" />
+          <LogoWordmark className="h-[18px] shrink-0 text-foreground" />
         </Link>
 
         {/* Navigation - inline with logo */}
