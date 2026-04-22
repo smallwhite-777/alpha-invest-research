@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import replace
 import json
 from pathlib import Path
 import re
@@ -65,7 +66,8 @@ class EvidenceBroker:
         skill_id: str,
     ) -> EvidenceBundle:
         skill = get_skill(skill_id)
-        search_result = self.search_agent.search(intent_result)
+        search_intent = self._prepare_search_intent(query, intent_result, skill_id)
+        search_result = self.search_agent.search(search_intent)
 
         items: List[EvidenceItem] = []
         grouped: Dict[str, List[EvidenceItem]] = defaultdict(list)
@@ -157,6 +159,53 @@ class EvidenceBroker:
             warnings=warnings,
             missing_required=missing_required,
             freshness_summary=freshness_summary,
+        )
+
+    def _prepare_search_intent(
+        self,
+        query: QueryContext,
+        intent_result: IntentResult,
+        skill_id: str,
+    ) -> IntentResult:
+        entities = list(intent_result.entities or [])
+        keywords = list(intent_result.keywords or [])
+        query_text = query.question or intent_result.original_query or ""
+
+        target_terms: List[str] = []
+        if query.company_name:
+            target_terms.append(query.company_name)
+        if query.stock_code:
+            target_terms.append(normalize_ticker(query.stock_code))
+
+        if query.company_name and "茅台" in query.company_name:
+            target_terms.append("茅台")
+
+        stock_code_match = re.search(r"\b(\d{6})\b", query_text)
+        if stock_code_match:
+            target_terms.append(stock_code_match.group(1))
+
+        for term in target_terms:
+            if term and term not in entities:
+                entities.append(term)
+            if term and term not in keywords:
+                keywords.append(term)
+
+        forced_intent = intent_result.intent
+        if skill_id in {"company_analysis", "peer_comparison"}:
+            forced_intent = IntentType.COMPANY_ANALYSIS
+        elif skill_id == "valuation":
+            forced_intent = IntentType.VALUATION
+        elif skill_id == "earnings_review":
+            forced_intent = IntentType.FINANCIAL_ANALYSIS
+
+        return replace(
+            intent_result,
+            intent=forced_intent,
+            entities=entities,
+            keywords=keywords,
+            company_name=query.company_name or intent_result.company_name,
+            stock_code=query.stock_code or intent_result.stock_code,
+            original_query=query_text,
         )
 
     def _missing_required(self, required: List[str], grouped: Dict[str, List[EvidenceItem]]) -> List[str]:
