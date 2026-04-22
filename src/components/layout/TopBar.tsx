@@ -241,9 +241,9 @@ export function TopBar() {
       {/* Single row: Logo + Nav + Ticker + Actions */}
       <div className="flex h-14 items-center">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 px-5 py-1 shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 px-5 py-1.5 shrink-0">
           <LogoFlower className="w-6 h-6 shrink-0 text-foreground" />
-          <LogoWordmark className="h-[18px] shrink-0 text-foreground" />
+          <LogoWordmark className="h-[19px] shrink-0 translate-y-px text-foreground" />
         </Link>
 
         {/* Navigation - inline with logo */}
