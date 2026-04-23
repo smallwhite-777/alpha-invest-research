@@ -89,6 +89,8 @@ interface DeepDraftRequest {
   recentContextMessages: { role: 'user' | 'assistant'; content: string }[]
   question: string
   requestedSkill?: string
+  companyName?: string
+  stockCode?: string
 }
 
 const CLEAN_STOPWORDS = new Set([
@@ -202,6 +204,32 @@ function extractTopicKeywords(text: string) {
     .filter((item) => item.length >= 2 && item.length <= 16 && !STOPWORDS.has(item))
 
   return dedupeStrings(candidates, MAX_CONTEXT_KEYWORDS)
+}
+
+function inferRequestedSkill(question: string, contextState?: ConversationContextState) {
+  const normalized = stripMarkdown(question).toLowerCase()
+
+  if (/估值|pe|pb|ps|市盈率|市净率|贵不贵|高估|低估/.test(normalized)) {
+    return 'valuation'
+  }
+
+  if (/对比|比较|同行|竞品|可比公司/.test(normalized)) {
+    return 'peer_comparison'
+  }
+
+  if (/财报|年报|季报|业绩|营收|利润|现金流|roe|毛利率/.test(normalized)) {
+    return 'earnings_review'
+  }
+
+  if (/宏观|利率|cpi|ppi|pmi|社融|经济|政策/.test(normalized)) {
+    return 'macro_analysis'
+  }
+
+  if (contextState?.primaryCompany || contextState?.stockCodes?.length) {
+    return 'company_analysis'
+  }
+
+  return undefined
 }
 
 function hasContextCarryoverReference(text: string) {
@@ -1241,12 +1269,33 @@ export default function AnalyzePage() {
       ? conversations.find((conversation) => conversation.id === currentConversationId)
       : null
 
+    const baseContextState = buildStableConversationContextState(messages, currentConversation?.contextState)
+    const companyCandidates = extractStableCompanyCandidates(question)
+    const stockCodes = extractStockCodes(question)
+    const topicKeywords = dedupeStrings([
+      ...extractStableTopicKeywords(question),
+      ...(baseContextState?.topicKeywords || []),
+    ], MAX_CONTEXT_KEYWORDS)
+    const contextState = mergeContextState(baseContextState, {
+      primaryCompany: companyCandidates[0] || baseContextState?.primaryCompany,
+      stockCodes,
+      timeRange: extractStableTimeRange(question) || baseContextState?.timeRange,
+      comparisonTargets: extractStableComparisonTargets(question),
+      topicKeywords,
+      lastUserQuestion: summarizeMessageContent(question, 220),
+      updatedAt: Date.now(),
+    })
+    const requestedSkill = inferRequestedSkill(question, contextState)
+
     return {
       chatMessages,
       recentContextMessages,
       contextSummary: currentConversation?.contextSummary || buildStableConversationSummary(messages),
-      contextState: buildStableConversationContextState(messages, currentConversation?.contextState),
+      contextState,
       question,
+      requestedSkill,
+      companyName: contextState?.primaryCompany,
+      stockCode: contextState?.stockCodes?.[0],
     }
   }, [conversations, currentConversationId, messages])
 

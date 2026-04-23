@@ -1035,6 +1035,139 @@ function buildWorkflowQuery(
   return parts.join('\n')
 }
 
+function buildDeepFallbackSources(
+  stage: 'outline' | 'article' | 'answer',
+  annualReportResult: AnnualReportSearchResult,
+) {
+  if (stage === 'outline') {
+    return [] as Array<{ id: string; title: string; type?: string }>
+  }
+
+  return annualReportResult.sources.map((source) => ({
+    id: source.file_path,
+    title: `${source.company_name}(${source.stock_code})`,
+    type: 'annual_report' as const,
+  }))
+}
+
+function buildDeepFallbackResult(input: {
+  question: string
+  stage: 'outline' | 'article' | 'answer'
+  requestedSkill?: string
+  contextState?: ConversationContextState
+  writingOutline?: string
+  annualReportResult: AnnualReportSearchResult
+}) {
+  const company = input.contextState?.primaryCompany || input.annualReportResult.sources[0]?.company_name || '目标公司'
+  const stockCode = input.contextState?.stockCodes?.[0] || input.annualReportResult.sources[0]?.stock_code
+  const titleName = stockCode ? `${company}(${stockCode})` : company
+  const metricLines = input.annualReportResult.metrics
+    .slice(0, 6)
+    .map((metric) => `- ${metric.name}: ${metric.value} (${metric.year})`)
+  const metricBlock = metricLines.length > 0 ? metricLines.join('\n') : '- 待补财务指标：营收、利润、ROE、现金流、毛利率'
+  const annualReportHint = input.annualReportResult.context
+    ? '已命中年报/财报文本，可继续围绕财务质量、业务结构和估值展开。'
+    : '当前未命中足够的财报原文证据，建议补充年报、季报或公司公告后继续深化。'
+
+  if (input.stage === 'outline') {
+    return {
+      result: `# ${titleName}深度分析写作框架
+
+## 一、执行摘要
+- 用 3-4 句话概括这家公司当前最重要的投资判断
+- 交代结论基于哪些已知证据，哪些部分仍需补证
+
+## 二、核心结论
+- 结论 1：商业模式与竞争壁垒
+- 结论 2：经营趋势与财务质量
+- 结论 3：估值位置与性价比
+
+## 三、商业模式与行业位置
+- 公司做什么、核心产品/业务结构是什么
+- 行业格局、竞争优势、护城河来源
+
+## 四、经营与财务质量
+${metricBlock}
+
+## 五、估值与市场预期
+- 当前估值水平
+- 历史分位与同行比较
+- 估值与增长是否匹配
+
+## 六、风险与反方观点
+- 行业景气度波动
+- 竞争加剧或政策变化
+- 业绩不及预期
+
+## 七、后续跟踪指标
+- 单季营收、利润、毛利率
+- 现金流与库存/资本开支
+- 估值分位与同行相对表现
+
+## 八、待补证据
+- ${annualReportHint}
+- 如需继续成文，请在右侧补充你的写作重点、结论倾向和希望强调的风险点。`,
+      sources: [] as Array<{ id: string; title: string; type?: string }>,
+      skill: input.requestedSkill || 'company_analysis',
+      warnings: ['Python assistant 暂不可用，当前返回的是前端兜底写作框架。'],
+      evidence_summary: {
+        annual_report_snippet: input.annualReportResult.sources.length,
+        financial_fact: input.annualReportResult.metrics.length,
+      },
+      workflow: 'frontend_deep_fallback',
+    }
+  }
+
+  if (input.stage === 'article') {
+    const outline = input.writingOutline?.trim()
+    return {
+      result: `# ${titleName}深度分析
+
+## 说明
+当前深度分析主链路暂时不可用，以下内容基于你确认后的写作框架与已命中的本地财报线索生成，适合作为继续润色的研究草稿。
+
+${outline ? `## 已确认写作框架\n${outline}\n` : ''}
+
+## 核心判断
+围绕 ${company} 的研究，建议优先从商业模式、财务质量、估值位置和风险暴露四条主线展开。${annualReportHint}
+
+## 已命中财务线索
+${metricBlock}
+
+## 建议正文展开方向
+1. 先交代公司在行业中的位置、核心竞争力和市场预期差。
+2. 再用财报和经营数据验证收入、利润、现金流、毛利率等核心指标。
+3. 然后补上估值与同行比较，说明当前定价是否反映基本面。
+4. 最后单列风险、反方观点和跟踪指标。
+
+## 待补证据
+- 补充最新年报/季报中的核心财务数据
+- 补充估值、股价和同行对比快照
+- 补充近期公司公告或行业变化，验证投资逻辑是否有新催化或新风险`,
+      sources: buildDeepFallbackSources(input.stage, input.annualReportResult),
+      skill: input.requestedSkill || 'company_analysis',
+      warnings: ['Python assistant 暂不可用，当前返回的是前端兜底文章草稿。'],
+      evidence_summary: {
+        annual_report_snippet: input.annualReportResult.sources.length,
+        financial_fact: input.annualReportResult.metrics.length,
+      },
+      workflow: 'frontend_deep_fallback',
+    }
+  }
+
+  return {
+    result: `${company} 当前走的是前端兜底分析路径。已优先尝试使用本地财报线索回答，但由于深度分析主链路暂不可用，建议稍后重试或补充更明确的标的和问题范围。`,
+    sources: buildDeepFallbackSources(input.stage, input.annualReportResult),
+    skill: input.requestedSkill || 'company_analysis',
+    warnings: ['Python assistant 暂不可用，当前返回的是前端兜底回答。'],
+    evidence_summary: {
+      annual_report_snippet: input.annualReportResult.sources.length,
+      financial_fact: input.annualReportResult.metrics.length,
+    },
+    workflow: 'frontend_deep_fallback',
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -1142,7 +1275,28 @@ export async function POST(request: NextRequest) {
         }
       } catch (workflowError) {
         console.error('[chat] Python workflow failed, falling back to frontend AI:', workflowError)
-        // Fall through to frontend AI logic below
+
+        if (mode === 'deep') {
+          const deepKeywords = Array.from(new Set([
+            ...(context_state?.primaryCompany ? [context_state.primaryCompany] : []),
+            ...(context_state?.stockCodes || []),
+            ...extractKeywords(question),
+          ])).slice(0, 8)
+          const annualReportResult = await fetchAnnualReportData(deepKeywords, question)
+          const fallback = buildDeepFallbackResult({
+            question,
+            stage: deep_mode_stage ?? 'answer',
+            requestedSkill: requested_skill,
+            contextState: context_state,
+            writingOutline: writing_outline,
+            annualReportResult,
+          })
+
+          return NextResponse.json({
+            ...fallback,
+            context_used: Boolean(context_summary || context_state || recent_context_messages?.length),
+          })
+        }
       }
     }
 
