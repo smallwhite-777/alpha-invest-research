@@ -171,9 +171,42 @@ function extractStockCodes(text: string) {
   return Array.from(text.matchAll(/\b(?:SH|SZ|HK)?(\d{5,6})\b/gi)).map((match) => match[1])
 }
 
+function normalizeCompanyCandidate(value: string) {
+  return stripMarkdown(value)
+    .replace(/[，。！？、；：“”"'‘’（）()【】\[\]<>《》]/g, ' ')
+    .replace(/^(请|帮我|给我|想看|想做|请帮我|麻烦|生成|撰写|写一份|写个|做一份|做个|来一份|关于|围绕|针对|聚焦|一份|一个|一篇)+/g, '')
+    .replace(/(深度研究报告|深度分析报告|研究报告|分析报告|写作框架|框架|报告|文章)+$/g, '')
+    .replace(/(深度研究|深度分析|分析|研究|撰写|写作|深度)+$/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
+function extractImplicitCompanyCandidates(text: string) {
+  const cleaned = stripMarkdown(text)
+  const candidates: string[] = []
+  const patterns = [
+    /([A-Za-z\u4e00-\u9fa5]{2,20}?)(?:深度研究报告|深度分析报告|研究报告|分析报告|写作框架)/g,
+    /(?:分析|研究|撰写|写一份|写个|做一份|做个|聚焦|关于|围绕|看看|看下)([A-Za-z\u4e00-\u9fa5]{2,20})/g,
+  ]
+
+  for (const pattern of patterns) {
+    for (const match of cleaned.matchAll(pattern)) {
+      const candidate = normalizeCompanyCandidate(match[1] || '')
+      if (candidate && candidate.length >= 2 && candidate.length <= 20 && !STOPWORDS.has(candidate)) {
+        candidates.push(candidate)
+      }
+    }
+  }
+
+  return candidates
+}
+
 function extractCompanyCandidates(text: string) {
   const matches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)/g) || []
-  return matches.map((item) => item.trim())
+  return dedupeStrings([
+    ...matches.map((item) => normalizeCompanyCandidate(item)),
+    ...extractImplicitCompanyCandidates(text),
+  ], 4)
 }
 
 function extractTimeRange(text: string) {
@@ -294,7 +327,10 @@ function buildStableConversationSummary(messages: Message[]) {
 
 function extractStableCompanyCandidates(text: string) {
   const matches = text.match(/[\u4e00-\u9fa5A-Za-z]{2,20}(?:股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)/g) || []
-  return matches.map((item) => item.trim())
+  return dedupeStrings([
+    ...matches.map((item) => normalizeCompanyCandidate(item)),
+    ...extractImplicitCompanyCandidates(text),
+  ], 4)
 }
 
 function extractStableTimeRange(text: string) {

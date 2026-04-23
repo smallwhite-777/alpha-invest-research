@@ -1035,6 +1035,57 @@ function buildWorkflowQuery(
   return parts.join('\n')
 }
 
+function normalizeFallbackCompanyName(value: string) {
+  return value
+    .replace(/[，。！？、；：“”"'‘’（）()【】\[\]<>《》]/g, ' ')
+    .replace(/^(请|帮我|给我|想看|想做|请帮我|麻烦|生成|撰写|写一份|写个|做一份|做个|来一份|关于|围绕|针对|聚焦|一份|一个|一篇)+/g, '')
+    .replace(/(深度研究报告|深度分析报告|研究报告|分析报告|写作框架|框架|报告|文章)+$/g, '')
+    .replace(/(深度研究|深度分析|分析|研究|撰写|写作|深度)+$/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
+function inferCompanyNameFromQuestion(question: string) {
+  const patterns = [
+    /([A-Za-z\u4e00-\u9fa5]{2,20}?)(?:深度研究报告|深度分析报告|研究报告|分析报告|写作框架)/g,
+    /(?:分析|研究|撰写|写一份|写个|做一份|做个|聚焦|关于|围绕|看看|看下)([A-Za-z\u4e00-\u9fa5]{2,20})/g,
+  ]
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(question)
+    if (!match?.[1]) continue
+    const candidate = normalizeFallbackCompanyName(match[1])
+    if (candidate.length >= 2 && candidate.length <= 20) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
+
+function buildDeepFallbackKeywords(question: string, contextState?: ConversationContextState) {
+  const inferredCompany = contextState?.primaryCompany || inferCompanyNameFromQuestion(question)
+  const keywordSet = new Set<string>()
+
+  if (inferredCompany) {
+    keywordSet.add(inferredCompany)
+    const alias = inferredCompany.replace(/(股份|集团|银行|证券|科技|控股|能源|医药|汽车|电子|实业|公司)$/, '')
+    if (alias && alias !== inferredCompany && alias.length >= 2) {
+      keywordSet.add(alias)
+    }
+  }
+
+  for (const stockCode of contextState?.stockCodes || []) {
+    if (stockCode) keywordSet.add(stockCode)
+  }
+
+  for (const keyword of extractKeywords(question)) {
+    keywordSet.add(keyword)
+  }
+
+  return Array.from(keywordSet).slice(0, 8)
+}
+
 function buildDeepFallbackSources(
   stage: 'outline' | 'article' | 'answer',
   annualReportResult: AnnualReportSearchResult,
@@ -1058,7 +1109,11 @@ function buildDeepFallbackResult(input: {
   writingOutline?: string
   annualReportResult: AnnualReportSearchResult
 }) {
-  const company = input.contextState?.primaryCompany || input.annualReportResult.sources[0]?.company_name || '目标公司'
+  const company =
+    input.contextState?.primaryCompany ||
+    input.annualReportResult.sources[0]?.company_name ||
+    inferCompanyNameFromQuestion(input.question) ||
+    '目标公司'
   const stockCode = input.contextState?.stockCodes?.[0] || input.annualReportResult.sources[0]?.stock_code
   const titleName = stockCode ? `${company}(${stockCode})` : company
   const metricLines = input.annualReportResult.metrics
@@ -1277,11 +1332,7 @@ export async function POST(request: NextRequest) {
         console.error('[chat] Python workflow failed, falling back to frontend AI:', workflowError)
 
         if (mode === 'deep') {
-          const deepKeywords = Array.from(new Set([
-            ...(context_state?.primaryCompany ? [context_state.primaryCompany] : []),
-            ...(context_state?.stockCodes || []),
-            ...extractKeywords(question),
-          ])).slice(0, 8)
+          const deepKeywords = buildDeepFallbackKeywords(question, context_state)
           const annualReportResult = await fetchAnnualReportData(deepKeywords, question)
           const fallback = buildDeepFallbackResult({
             question,

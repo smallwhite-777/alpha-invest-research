@@ -6,13 +6,6 @@ async function run(stage: 'outline' | 'article') {
     mode: 'deep',
     use_workflow: true,
     context_summary: '用户希望撰写贵州茅台深度研究报告',
-    context_state: {
-      primaryCompany: '贵州茅台',
-      stockCodes: ['600519'],
-      comparisonTargets: [],
-      topicKeywords: ['贵州茅台', '深度研究', '估值'],
-      updatedAt: Date.now(),
-    },
     requested_skill: 'company_analysis',
     deep_mode_stage: stage,
   }
