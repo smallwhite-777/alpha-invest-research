@@ -75,10 +75,10 @@ export const SW_SECTORS = [
 export type SwSectorCode = (typeof SW_SECTORS)[number]['code']
 
 export const NAV_ITEMS = [
-  { href: '/', label: '概览', icon: 'Home' },
-  { href: '/intelligence', label: '情报看板', icon: 'Shield' },
-  { href: '/stock', label: '个股看板', icon: 'BarChart3' },
-  { href: '/macro', label: '宏观看板', icon: 'Globe' },
-  { href: '/news', label: '实时新闻', icon: 'Newspaper' },
-  { href: '/analyze', label: '智能分析', icon: 'FileText' },
+  { href: '/', label: '首页', icon: 'Home' },
+  { href: '/intelligence', label: '情报', icon: 'Shield' },
+  { href: '/stock', label: '个股', icon: 'BarChart3' },
+  { href: '/macro', label: '宏观', icon: 'Globe' },
+  { href: '/intelligence?type=RESEARCH_REPORT', label: '研报', icon: 'FileText' },
+  { href: '/news', label: '新闻', icon: 'Newspaper' },
 ] as const

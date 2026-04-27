@@ -4,25 +4,28 @@ import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Bell, Sun, Moon, Plus, Sparkles, X, Home, Shield, BarChart3, Globe, Newspaper, FileText } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Search, Bell, Sun, Moon, Plus, Sparkles, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { NAV_ITEMS } from '@/lib/constants'
-import { LogoFlower } from '@/components/ui/LogoFlower'
-import { LogoWordmark } from '@/components/ui/LogoWordmark'
+import { LogoSerifTerminal } from '@/components/ui/LogoSerifTerminal'
 
-const ICON_MAP: Record<string, any> = {
-  Home, Shield, BarChart3, Globe, Newspaper, FileText, Search,
-}
-
-interface StockTicker {
-  code: string
+interface IndexQuote {
   name: string
-  price: number | null
-  change: number | null
-  change_pct: number | null
+  value: string
+  change: number
+  isPercent: boolean
 }
+
+const INDEX_SEED: IndexQuote[] = [
+  { name: '上证', value: '3,247.82', change: 0.84, isPercent: true },
+  { name: '深证', value: '10,184.6', change: 1.12, isPercent: true },
+  { name: '创业板', value: '2,156.40', change: 1.62, isPercent: true },
+  { name: '恒生', value: '18,924.6', change: -0.31, isPercent: true },
+  { name: '美元/人民币', value: '7.218', change: -0.04, isPercent: false },
+  { name: '布伦特', value: '83.42', change: 0.91, isPercent: true },
+  { name: '10Y国债', value: '2.31%', change: 0.012, isPercent: false },
+]
 
 const HOT_SEARCHES = [
   { type: 'stock', text: '贵州茅台' },
@@ -32,31 +35,13 @@ const HOT_SEARCHES = [
   { type: 'intelligence', text: 'AI' },
 ]
 
-function TickerItem({ stock }: { stock: StockTicker }) {
-  if (stock.price === null) return null
-  const isUp = stock.change_pct !== null && stock.change_pct >= 0
-
-  return (
-    <Link
-      href={`/stock/${stock.code}`}
-      className="inline-flex items-center gap-2 whitespace-nowrap px-4 text-sm hover:opacity-70 transition-opacity"
-    >
-      <span className="text-muted-foreground text-xs">{stock.name}</span>
-      <span className="text-foreground font-medium tabular-nums">{stock.price.toFixed(2)}</span>
-      <span className={cn('font-medium tabular-nums text-xs', isUp ? 'text-up' : 'text-down')}>
-        {isUp && stock.change_pct !== null ? '+' : ''}{stock.change_pct?.toFixed(2) || '-'}%
-      </span>
-    </Link>
-  )
-}
-
 interface SearchResult {
   type: 'intelligence' | 'stock' | 'news'
   id: string
   title: string
   description?: string
   url: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -98,7 +83,7 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const typeLabels: Record<string, string> = {
     intelligence: '情报',
     stock: '股票',
-    news: '新闻'
+    news: '新闻',
   }
 
   return (
@@ -141,9 +126,7 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-foreground truncate">{result.title}</div>
                     {result.description && (
-                      <div className="text-sm text-muted-foreground truncate mt-0.5">
-                        {result.description}
-                      </div>
+                      <div className="text-sm text-muted-foreground truncate mt-0.5">{result.description}</div>
                     )}
                   </div>
                   <span className="text-xs px-2 py-0.5 bg-surface-high text-muted-foreground shrink-0">
@@ -182,14 +165,20 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
                 <p className="text-xs text-muted-foreground">快捷操作</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => { onOpenChange(false); router.push('/intelligence/create') }}
+                    onClick={() => {
+                      onOpenChange(false)
+                      router.push('/intelligence/create')
+                    }}
                     className="flex items-center gap-2 p-3 bg-surface-low hover:bg-surface-high transition-colors"
                   >
                     <Plus className="h-4 w-4 text-secondary" />
                     <span className="text-sm">新建情报</span>
                   </button>
                   <button
-                    onClick={() => { onOpenChange(false); router.push('/analyze') }}
+                    onClick={() => {
+                      onOpenChange(false)
+                      router.push('/analyze')
+                    }}
                     className="flex items-center gap-2 p-3 bg-surface-low hover:bg-surface-high transition-colors"
                   >
                     <Sparkles className="h-4 w-4 text-secondary" />
@@ -205,97 +194,163 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   )
 }
 
+function formatChange(q: IndexQuote): string {
+  const abs = Math.abs(q.change)
+  const sign = q.change >= 0 ? '+' : ''
+  if (q.isPercent) {
+    return `${sign}${q.change.toFixed(2)}%`
+  }
+  return `${sign}${q.change.toFixed(abs < 0.5 ? 3 : 2)}`
+}
+
+function useClock(): string {
+  const [time, setTime] = useState<string>('')
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date()
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mm = String(d.getMinutes()).padStart(2, '0')
+      const ss = String(d.getSeconds()).padStart(2, '0')
+      setTime(`${hh}:${mm}:${ss}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return time
+}
+
+const NAVY = '#001629'
+const CREAM = '#e4e2dd'
+const SAGE = '#6fa888'
+const MAROON = '#c65d65'
+
 export function TopBar() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
-  const [stocks, setStocks] = useState<StockTicker[]>([])
+  const time = useClock()
 
   useEffect(() => setMounted(true), [])
 
-  useEffect(() => {
-    fetchStocks()
-    const interval = setInterval(fetchStocks, 60000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchStocks = async () => {
-    try {
-      const res = await fetch('/api/stock/hot?count=15')
-      const data = await res.json()
-      if (data.stocks) setStocks(data.stocks)
-    } catch (error) {
-      console.error('Failed to fetch stocks:', error)
-    }
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/'
+    const hrefPath = href.split('?')[0]
+    return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`)
   }
 
   return (
-    <header className="bg-surface-low shrink-0">
-      {/* Single row: Logo + Nav + Ticker + Actions */}
-      <div className="flex h-12 items-center">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 px-5 shrink-0">
-          <LogoFlower className="w-6 h-6 shrink-0 text-foreground" />
-          <LogoWordmark className="h-4 shrink-0 text-foreground" />
+    <header
+      className="shrink-0 flex items-center"
+      style={{
+        height: 56,
+        background: NAVY,
+        color: CREAM,
+        borderBottom: '1px solid rgba(0,22,41,0.10)',
+      }}
+    >
+      {/* Logo + Nav */}
+      <div className="flex items-center" style={{ padding: '0 24px', gap: 28 }}>
+        <Link href="/" className="flex items-center">
+          <LogoSerifTerminal size={18} color={CREAM} />
         </Link>
-
-        {/* Navigation - inline with logo */}
-        <nav className="flex items-center gap-0 shrink-0">
+        <nav className="flex items-center" style={{ fontSize: 12 }}>
           {NAV_ITEMS.map((item) => {
-            const Icon = ICON_MAP[item.icon]
-            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-all duration-150',
-                  isActive
-                    ? 'text-foreground font-medium bg-surface-high'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-high/60'
-                )}
+                className="transition-colors"
+                style={{
+                  padding: '6px 14px',
+                  color: active ? CREAM : 'rgba(228,226,221,0.7)',
+                  fontWeight: active ? 500 : 400,
+                  background: active ? 'rgba(228,226,221,0.12)' : 'transparent',
+                }}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
+                {item.label}
               </Link>
             )
           })}
         </nav>
+      </div>
 
-        {/* Scrolling ticker */}
-        <div className="flex-1 overflow-hidden bg-surface mx-2">
-          <div className="animate-scroll-left flex items-center h-12">
-            {[...stocks, ...stocks].map((stock, i) => (
-              <TickerItem key={`${stock.code}-${i}`} stock={stock} />
-            ))}
-          </div>
-        </div>
+      {/* Index ticker — flat row, no scroll */}
+      <div
+        className="flex-1 overflow-hidden flex"
+        style={{
+          fontSize: 11,
+          gap: 24,
+          padding: '0 16px',
+          whiteSpace: 'nowrap',
+          color: 'rgba(228,226,221,0.85)',
+        }}
+      >
+        {INDEX_SEED.map((q) => (
+          <span key={q.name} className="font-mono-data">
+            <span style={{ opacity: 0.6 }}>{q.name}</span>{' '}
+            {q.value}{' '}
+            <span style={{ color: q.change >= 0 ? SAGE : MAROON }}>{formatChange(q)}</span>
+          </span>
+        ))}
+      </div>
 
-        {/* Right actions */}
-        <div className="flex items-center gap-1 px-4">
+      {/* Right: clock + actions */}
+      <div className="flex items-center" style={{ padding: '0 16px', gap: 8 }}>
+        <span
+          className="font-mono-data"
+          style={{ fontSize: 11, color: 'rgba(228,226,221,0.6)', marginRight: 8 }}
+        >
+          {time || '--:--:--'} · 沪深 实时
+        </span>
+
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="transition-colors"
+          style={{
+            padding: '6px 8px',
+            color: 'rgba(228,226,221,0.7)',
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+          }}
+          aria-label="搜索"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+
+        {mounted && (
           <button
-            onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="transition-colors"
+            style={{
+              padding: '6px 8px',
+              color: 'rgba(228,226,221,0.7)',
+              background: 'transparent',
+              border: 0,
+              cursor: 'pointer',
+            }}
+            aria-label="切换主题"
           >
-            <Search className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">搜索</span>
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+        )}
 
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-          )}
-
-          <button className="p-2 text-muted-foreground transition-colors hover:bg-surface-high hover:text-foreground">
-            <Bell className="h-4 w-4" />
-          </button>
-        </div>
+        <button
+          className="transition-colors"
+          style={{
+            padding: '6px 8px',
+            color: 'rgba(228,226,221,0.7)',
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+          }}
+          aria-label="通知"
+        >
+          <Bell className="h-4 w-4" />
+        </button>
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
