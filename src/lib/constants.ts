@@ -79,6 +79,5 @@ export const NAV_ITEMS = [
   { href: '/intelligence', label: '情报', icon: 'Shield' },
   { href: '/stock', label: '个股', icon: 'BarChart3' },
   { href: '/macro', label: '宏观', icon: 'Globe' },
-  { href: '/intelligence?type=RESEARCH_REPORT', label: '研报', icon: 'FileText' },
-  { href: '/news', label: '新闻', icon: 'Newspaper' },
+  { href: '/analyze', label: '智能分析', icon: 'Sparkles' },
 ] as const

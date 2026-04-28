@@ -21,6 +21,7 @@ interface SearchResult {
 export default function StockPage() {
   const [hotStocks, setHotStocks] = useState<HotStock[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -34,11 +35,15 @@ export default function StockPage() {
     try {
       const res = await fetch('/api/stock/hot?count=20')
       const data = await res.json()
-      if (data.stocks) {
+      if (Array.isArray(data?.stocks) && data.stocks.length > 0) {
         setHotStocks(data.stocks)
+        setFetchError(null)
+      } else {
+        setFetchError(data?.error || '行情数据源暂时不可用')
       }
     } catch (error) {
       console.error('Failed to fetch hot stocks:', error)
+      setFetchError('行情数据源暂时不可用')
     } finally {
       setLoading(false)
     }
@@ -151,6 +156,20 @@ export default function StockPage() {
           </h3>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">加载中...</div>
+          ) : fetchError || hotStocks.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="text-sm text-muted-foreground mb-2">{fetchError || '暂无热门数据'}</div>
+              <div className="text-xs text-muted-foreground/70">行情后端 (alpha-backend.open1nvest.com) 当前未连通，稍后再试</div>
+              <button
+                onClick={() => {
+                  setLoading(true)
+                  fetchHotStocks()
+                }}
+                className="mt-4 px-3 py-1.5 text-xs border border-input bg-background hover:bg-surface-high transition-colors"
+              >
+                重试
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-surface-high">
               {hotStocks.slice(0, 12).map((stock, idx) => (
