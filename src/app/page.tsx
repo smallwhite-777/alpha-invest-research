@@ -824,18 +824,42 @@ export default function Homepage() {
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '--:--'
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  if (Number.isNaN(d.getTime())) return '--'
+
+  // Detect "date-only" timestamps (parsed as midnight UTC) — fall back to date.
+  const isDateOnly =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0
+
+  const now = new Date()
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+
+  if (!isDateOnly && sameDay) {
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+  return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
 function formatRelative(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
+
+  // For date-only timestamps, skip "X 小时前" precision and go straight to date.
+  const isDateOnly =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0
+
   const diff = Date.now() - d.getTime()
   const hours = Math.floor(diff / 3600000)
-  if (hours < 1) return '刚刚'
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
+  const days = Math.floor(diff / 86400000)
+
+  if (!isDateOnly) {
+    if (hours < 1) return '刚刚'
+    if (hours < 24) return `${hours} 小时前`
+  }
+  if (days < 1) return '今天'
+  if (days < 2) return '昨天'
   if (days < 7) return `${days} 天前`
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
