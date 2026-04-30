@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5003'
 
 export async function POST(request: NextRequest) {
   try {
+    const quota = await checkAndConsumeQuota('AI')
+    if (!quota.allowed) {
+      return NextResponse.json(buildLimitReachedPayload('AI', quota), { status: 401 })
+    }
+
     const body = await request.json()
     const { query, provider } = body
 
@@ -28,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json({ ...data, quota: buildQuotaInfo(quota, 'AI') })
 
   } catch (error) {
     console.error('Research query error:', error)

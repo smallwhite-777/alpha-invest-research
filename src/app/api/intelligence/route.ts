@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getCurrentUser } from '@/lib/auth-helpers'
 import { getLocalEventDatabaseIntelligenceItems } from '@/lib/intelligence/event-database-import'
 import { getLocalWsjIntelligenceItems, WSJ_SOURCE_NAME } from '@/lib/intelligence/wsj-events-import'
 import { getIntelligenceFeedFromNewStore, hasNewIntelligenceStoreData } from '@/lib/intelligence/services/get-intelligence-feed'
@@ -95,6 +96,9 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '20')
   const skip = (page - 1) * limit
 
+  const currentUser = await getCurrentUser()
+  const canViewExclusive = !!currentUser
+
   // Try database first, fallback to mock data
   try {
     if (await hasNewIntelligenceStoreData()) {
@@ -119,6 +123,7 @@ export async function GET(request: NextRequest) {
     }
 
     const where: Record<string, unknown> = {}
+    if (!canViewExclusive) where.isExclusive = false
     if (category) where.category = category
     if (importance) where.importance = parseInt(importance)
     if (source) where.source = source
@@ -204,12 +209,21 @@ export async function GET(request: NextRequest) {
 
 // POST /api/intelligence - Create intelligence
 export async function POST(request: NextRequest) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    return NextResponse.json({ error: '请登录后录入情报' }, { status: 401 })
+  }
+
   const body = await request.json()
   const {
     title, content, summary, category, importance,
     tags, sectors, stocks, source, authorName,
     attachments,
+    isExclusive,
   } = body
+
+  // 仅管理员可标记独家
+  const exclusive = currentUser.role === 'ADMIN' && Boolean(isExclusive)
 
   const intelligence = await prisma.intelligence.create({
     data: {
@@ -219,7 +233,9 @@ export async function POST(request: NextRequest) {
       category,
       importance: importance || 3,
       source,
-      authorName: authorName || '匿名',
+      authorName: authorName || currentUser.name || currentUser.email,
+      authorId: currentUser.id,
+      isExclusive: exclusive,
       tags: tags ? {
         create: await Promise.all(tags.map(async (tagName: string) => {
           let tag = await prisma.tag.findUnique({ where: { name: tagName } })

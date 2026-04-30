@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import { parseFiles } from '@/lib/parsers'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 
 export async function POST(request: NextRequest) {
   try {
+    const quota = await checkAndConsumeQuota('AI')
+    if (!quota.allowed) {
+      return NextResponse.json(buildLimitReachedPayload('AI', quota), { status: 401 })
+    }
+
     const formData = await request.formData()
     const files: File[] = []
     let mode: 'basic' | 'deep' = 'deep'
@@ -56,6 +66,7 @@ export async function POST(request: NextRequest) {
       result,
       parsedFiles: parsed.map((p) => p.name),
       errors: errors.length > 0 ? errors : undefined,
+      quota: buildQuotaInfo(quota, 'AI'),
     })
   } catch (error) {
     console.error('分析失败:', error)

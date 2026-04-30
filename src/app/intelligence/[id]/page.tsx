@@ -14,12 +14,28 @@ import { ArrowLeft, Edit, Trash2, FileText, Download } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import useSWR from 'swr'
+import { LoginGate } from '@/components/auth/LoginGate'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+class FetchHttpError extends Error {
+  status: number
+  payload: unknown
+  constructor(status: number, payload: unknown) {
+    super(`HTTP ${status}`)
+    this.status = status
+    this.payload = payload
+  }
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new FetchHttpError(res.status, data)
+  return data
+}
 
 // Get color for SW_SECTOR by code (deterministic)
 const getSectorColor = (code: string) => {
@@ -73,6 +89,38 @@ export default function IntelligenceDetailPage({ params }: PageProps) {
           <div className="h-32 bg-card rounded" />
         </div>
       </div>
+      </div>
+    )
+  }
+
+  if (error instanceof FetchHttpError && error.status === 401) {
+    const payload = (error.payload || {}) as {
+      isExclusive?: boolean
+      requiresLogin?: boolean
+      quota?: { kind?: string; used?: number; limit?: number }
+    }
+    const isQuotaBlock = payload.quota?.kind === 'DEEP_REPORT'
+    const title = isQuotaBlock ? '今日免费阅读次数已用完' : '独家情报'
+    const description = isQuotaBlock
+      ? `游客每日可免费阅读 ${payload.quota?.limit ?? 3} 篇深度报告。注册或登录后即可继续阅读全部内容。`
+      : '该情报为独家内容，仅对登录用户开放。登录或注册后即可查看完整内容。'
+    return (
+      <div className="h-full overflow-y-auto p-6">
+        <div className="mx-auto max-w-2xl py-12">
+          <Button
+            variant="ghost"
+            className="mb-6 -ml-3"
+            onClick={() => router.push('/intelligence')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            返回列表
+          </Button>
+          <LoginGate
+            from={`/intelligence/${id}`}
+            title={title}
+            description={description}
+          />
+        </div>
       </div>
     )
   }

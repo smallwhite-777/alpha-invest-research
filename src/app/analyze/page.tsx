@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, Loader2, AlertCircle, ChevronDown, ChevronUp, History, Trash2, Zap, Brain, Send, User, Bot, Plus, Database, CheckCircle2, Clock, XCircle, Loader, GripVertical, FilePenLine, Newspaper, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import { GuestQuotaInline } from '@/components/auth/GuestQuotaInline'
 import type { AssistantApiResponse } from '@/lib/assistant/types'
 
 interface UploadedFile {
@@ -1890,6 +1891,8 @@ export default function AnalyzePage() {
                   <h1 className="text-2xl font-bold text-foreground mb-2 font-editorial">智能投研助手</h1>
                   <p className="text-muted-foreground">上传研报获取AI分析 -- 基于知识库情报提问 -- 思维链条可视化</p>
                 </div>
+
+                <GuestQuotaInline kind="AI" className="w-full max-w-xl mx-auto" />
 
                 {/* 快速示例 */}
                 <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">

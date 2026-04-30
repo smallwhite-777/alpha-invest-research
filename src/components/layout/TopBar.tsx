@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Bell, Sun, Moon, Plus, Sparkles, X } from 'lucide-react'
+import { Search, Sun, Moon, Plus, Sparkles, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { NAV_ITEMS } from '@/lib/constants'
 import { LogoSerifTerminal } from '@/components/ui/LogoSerifTerminal'
+import { UserMenu } from '@/components/auth/UserMenu'
+import { GuestQuotaBadge } from '@/components/auth/GuestQuotaBadge'
 
 interface IndexQuote {
   name: string
@@ -338,19 +340,8 @@ export function TopBar() {
           </button>
         )}
 
-        <button
-          className="transition-colors"
-          style={{
-            padding: '6px 8px',
-            color: 'rgba(228,226,221,0.7)',
-            background: 'transparent',
-            border: 0,
-            cursor: 'pointer',
-          }}
-          aria-label="通知"
-        >
-          <Bell className="h-4 w-4" />
-        </button>
+        <GuestQuotaBadge />
+        <UserMenu />
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />

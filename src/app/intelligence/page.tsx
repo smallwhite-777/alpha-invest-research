@@ -23,6 +23,7 @@ import { IntelligenceList } from '@/components/intelligence/IntelligenceList'
 import { Input } from '@/components/ui/input'
 import { INTELLIGENCE_CATEGORIES, SW_SECTORS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { GuestQuotaInline } from '@/components/auth/GuestQuotaInline'
 
 const CATEGORY_ICONS: Record<string, typeof FileText> = {
   INDUSTRY_TRACK: TrendingUp,
@@ -187,7 +188,9 @@ function IntelligenceContent() {
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-3xl">
           <h1 className="font-editorial text-2xl text-foreground mb-1">情报中心</h1>
-          <p className="text-sm text-secondary mb-8">来自一线的情报汇总</p>
+          <p className="text-sm text-secondary mb-4">来自一线的情报汇总</p>
+
+          <GuestQuotaInline kind="DEEP_REPORT" className="mb-6" />
 
           <div className="mb-6 flex items-center gap-2">
             <button

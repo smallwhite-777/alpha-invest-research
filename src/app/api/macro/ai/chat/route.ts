@@ -5,9 +5,19 @@ import { getMacroForecast } from '@/lib/macro-ai/forecast'
 import { detectMacroIntent } from '@/lib/macro-ai/intents'
 import { readMacroSignals } from '@/lib/macro-ai/signals'
 import type { MacroAIContext } from '@/lib/macro-ai/types'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 
 export async function POST(request: NextRequest) {
   try {
+    const quota = await checkAndConsumeQuota('AI')
+    if (!quota.allowed) {
+      return NextResponse.json(buildLimitReachedPayload('AI', quota), { status: 401 })
+    }
+
     const body = await request.json()
     const question = typeof body?.question === 'string' ? body.question.trim() : ''
     const context = (body?.context ?? undefined) as MacroAIContext | undefined
@@ -61,6 +71,7 @@ export async function POST(request: NextRequest) {
       correlations,
       forecast,
       warnings,
+      quota: buildQuotaInfo(quota, 'AI'),
     })
   } catch (error) {
     return NextResponse.json(

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 import { suggestTemplate, getTemplateSystemPrompt } from '@/lib/ai/templates'
 import { buildAssistantContext } from '@/lib/assistant/context'
 import type { AssistantApiResponse } from '@/lib/assistant/types'
@@ -1225,6 +1230,12 @@ ${metricBlock}
 
 export async function POST(request: NextRequest) {
   try {
+    const quota = await checkAndConsumeQuota('AI')
+    if (!quota.allowed) {
+      return NextResponse.json(buildLimitReachedPayload('AI', quota), { status: 401 })
+    }
+    const quotaInfo = buildQuotaInfo(quota, 'AI')
+
     const body = await request.json()
     const { messages, mode = 'deep', enable_tools = true, use_workflow = true, context_summary, context_state, recent_context_messages, requested_skill, deep_mode_stage, writing_outline } = body as {
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[]

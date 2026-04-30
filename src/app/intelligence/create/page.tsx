@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { INTELLIGENCE_CATEGORIES, IMPORTANCE_LEVELS, SW_SECTORS } from '@/lib/constants'
-import { X, Plus, Upload, FileText, Loader2, Check, Wand2, Paperclip, AlertCircle } from 'lucide-react'
+import { X, Plus, Upload, FileText, Loader2, Check, Wand2, Paperclip, AlertCircle, Lock } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 
 interface AutoCompleteResult {
@@ -32,10 +33,13 @@ interface UploadedFile {
 
 export default function CreateIntelligencePage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'ADMIN'
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAutoCompleting, setIsAutoCompleting] = useState(false)
   const [autoCompleteResult, setAutoCompleteResult] = useState<AutoCompleteResult | null>(null)
   const [autoCompleteError, setAutoCompleteError] = useState('')
+  const [isExclusive, setIsExclusive] = useState(false)
 
   // 输入内容
   const [content, setContent] = useState('')
@@ -230,6 +234,7 @@ export default function CreateIntelligencePage() {
           sectors: selectedSectors,
           stocks,
           attachments: uploaded,
+          isExclusive: isAdmin ? isExclusive : false,
         }),
       })
 
@@ -545,6 +550,27 @@ export default function CreateIntelligencePage() {
                   />
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="mt-4 flex items-start gap-3 p-3 border border-border bg-surface-low">
+                  <input
+                    id="isExclusive"
+                    type="checkbox"
+                    checked={isExclusive}
+                    onChange={(e) => setIsExclusive(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="isExclusive" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Lock className="h-3.5 w-3.5" />
+                      设为独家内容（仅管理员可设置）
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      勾选后只有登录用户可查看，访客将看到登录提示遮罩。
+                    </div>
+                  </label>
+                </div>
+              )}
             </CardContent>
           </Card>
 

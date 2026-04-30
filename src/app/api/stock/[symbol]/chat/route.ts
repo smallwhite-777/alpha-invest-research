@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 
 interface StockContext {
   stockCode: string
@@ -113,6 +118,12 @@ export async function POST(
   { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
+    const quota = await checkAndConsumeQuota('AI')
+    if (!quota.allowed) {
+      return NextResponse.json(buildLimitReachedPayload('AI', quota), { status: 401 })
+    }
+    const quotaInfo = buildQuotaInfo(quota, 'AI')
+
     const { symbol } = await params
     const body = await request.json()
     const { messages, stockContext } = body as {
@@ -171,7 +182,7 @@ export async function POST(
 
 您还想了解哪些方面？比如行业对比、估值分析、风险因素等。`
 
-      return NextResponse.json({ result: mockReply })
+      return NextResponse.json({ result: mockReply, quota: quotaInfo })
     }
 
     // Build messages for AI
@@ -203,7 +214,7 @@ export async function POST(
     const data = await response.json() as any
     const result = data.choices?.[0]?.message?.content || ''
 
-    return NextResponse.json({ result })
+    return NextResponse.json({ result, quota: quotaInfo })
   } catch (error) {
     console.error('[stock-chat] Error:', error)
     return NextResponse.json(

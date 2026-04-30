@@ -2,6 +2,7 @@
 
 import useSWR from 'swr'
 import Link from 'next/link'
+import { Lock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { INTELLIGENCE_CATEGORIES, IMPORTANCE_LEVELS } from '@/lib/constants'
@@ -69,6 +70,7 @@ function IntelligenceCard({ intelligence, index }: { intelligence: Intelligence;
   const categoryInfo = INTELLIGENCE_CATEGORIES.find(c => c.value === intelligence.category)
   const importanceInfo = IMPORTANCE_LEVELS.find(l => l.value === intelligence.importance)
   const isEven = index % 2 === 0
+  const isExclusive = (intelligence as Intelligence & { isExclusive?: boolean }).isExclusive === true
 
   return (
     <Link href={`/intelligence/${intelligence.id}`}>
@@ -81,6 +83,12 @@ function IntelligenceCard({ intelligence, index }: { intelligence: Intelligence;
             {importanceInfo && intelligence.importance >= 4 && (
               <span className="text-[10px] uppercase tracking-wider text-down bg-surface-high px-2 py-0.5">
                 {importanceInfo.label}
+              </span>
+            )}
+            {isExclusive && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5" style={{ background: '#6fa888', color: '#001629' }}>
+                <Lock className="h-2.5 w-2.5" />
+                独家
               </span>
             )}
           </div>

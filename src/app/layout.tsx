@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { ThemeProvider } from "next-themes"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TopBar } from "@/components/layout/TopBar"
+import { SessionProvider } from "@/components/auth/SessionProvider"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -17,21 +18,23 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <TooltipProvider>
-            <div className="flex h-screen flex-col overflow-hidden">
-              <TopBar />
-              <main className="flex-1 overflow-hidden">
-                {children}
-              </main>
-            </div>
-          </TooltipProvider>
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <TooltipProvider>
+              <div className="flex h-screen flex-col overflow-hidden">
+                <TopBar />
+                <main className="flex-1 overflow-hidden">
+                  {children}
+                </main>
+              </div>
+            </TooltipProvider>
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   )

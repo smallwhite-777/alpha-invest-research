@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getCurrentUser, requireAdmin } from '@/lib/auth-helpers'
+import {
+  buildLimitReachedPayload,
+  buildQuotaInfo,
+  checkAndConsumeQuota,
+} from '@/lib/guest-quota'
 import { getIntelligenceDetailById } from '@/lib/intelligence/services/get-intelligence-detail'
+
+const DEEP_REPORT_CATEGORIES = new Set(['RESEARCH_REPORT', 'MEETING_MINUTES'])
 
 // GET /api/intelligence/[id] - Get single intelligence
 export async function GET(
@@ -16,7 +24,26 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    return NextResponse.json(intelligence)
+    const item = intelligence as { isExclusive?: boolean; category?: string }
+    const user = await getCurrentUser()
+
+    if (item.isExclusive && !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized', requiresLogin: true, isExclusive: true },
+        { status: 401 }
+      )
+    }
+
+    let quotaPayload: ReturnType<typeof buildQuotaInfo> = null
+    if (!user && item.category && DEEP_REPORT_CATEGORIES.has(item.category)) {
+      const quota = await checkAndConsumeQuota('DEEP_REPORT')
+      if (!quota.allowed) {
+        return NextResponse.json(buildLimitReachedPayload('DEEP_REPORT', quota), { status: 401 })
+      }
+      quotaPayload = buildQuotaInfo(quota, 'DEEP_REPORT')
+    }
+
+    return NextResponse.json({ ...intelligence, quota: quotaPayload })
   } catch (error) {
     console.error('Error fetching intelligence:', error)
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
@@ -31,8 +58,9 @@ export async function PUT(
   const { id } = await params
 
   try {
+    const adminUser = await requireAdmin()
     const body = await request.json()
-    const { title, content, summary, category, importance, source, authorName, tags, sectors, stocks } = body
+    const { title, content, summary, category, importance, source, authorName, tags, sectors, stocks, isExclusive } = body
 
     // Update basic fields
     await prisma.intelligence.update({
@@ -45,8 +73,11 @@ export async function PUT(
         importance,
         source,
         authorName,
+        isExclusive: typeof isExclusive === 'boolean' ? isExclusive : undefined,
       },
     })
+
+    void adminUser
 
     // Update tags if provided
     if (tags !== undefined) {
@@ -106,6 +137,7 @@ export async function PUT(
 
     return NextResponse.json(intelligence)
   } catch (error) {
+    if (error instanceof Response) return error
     console.error('Error updating intelligence:', error)
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
@@ -119,6 +151,8 @@ export async function DELETE(
   const { id } = await params
 
   try {
+    await requireAdmin()
+
     // Explicitly delete related records first (libsql may not auto-cascade)
     await prisma.$transaction([
       prisma.intelligenceTag.deleteMany({ where: { intelligenceId: id } }),
@@ -130,6 +164,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof Response) return error
     console.error('Error deleting intelligence:', error)
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
   }
