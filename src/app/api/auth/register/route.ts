@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { issueAndSendVerification } from '@/lib/email-verification'
 
 const registerSchema = z.object({
   email: z.string().email('请输入合法的邮箱地址').transform((v) => v.trim().toLowerCase()),
@@ -47,5 +48,24 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, name: true },
   })
 
-  return NextResponse.json({ user }, { status: 201 })
+  const verification = await issueAndSendVerification({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+  })
+
+  return NextResponse.json(
+    {
+      user,
+      verification: {
+        delivered: verification.deliveryResult.delivered,
+        // 仅当 SMTP 未配置且非生产时，把 token 链接吐回，方便本地联调；线上不再回显
+        debugVerifyUrl:
+          !verification.deliveryResult.delivered && process.env.NODE_ENV !== 'production'
+            ? verification.verifyUrl
+            : undefined,
+      },
+    },
+    { status: 201 }
+  )
 }

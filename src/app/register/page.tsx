@@ -2,12 +2,16 @@
 
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { LogoSerifTerminal } from '@/components/ui/LogoSerifTerminal'
 
+interface RegisterSuccessState {
+  email: string
+  emailDelivered: boolean
+  debugVerifyUrl?: string
+}
+
 function RegisterForm() {
-  const router = useRouter()
   const search = useSearchParams()
   const from = search.get('from') || '/'
   const [email, setEmail] = useState('')
@@ -16,6 +20,8 @@ function RegisterForm() {
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState<RegisterSuccessState | null>(null)
+  const [resendStatus, setResendStatus] = useState<null | 'sending' | 'sent' | 'failed'>(null)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,11 +32,12 @@ function RegisterForm() {
     }
     setSubmitting(true)
 
+    const trimmedEmail = email.trim().toLowerCase()
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email.trim().toLowerCase(),
+        email: trimmedEmail,
         password,
         name: name.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -44,18 +51,78 @@ function RegisterForm() {
       return
     }
 
-    const signRes = await signIn('credentials', {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-    })
+    const data = await res.json().catch(() => ({}))
     setSubmitting(false)
-    if (signRes?.error) {
-      setError('注册成功，但自动登录失败，请前往登录页')
-      return
+    setSuccess({
+      email: trimmedEmail,
+      emailDelivered: Boolean(data?.verification?.delivered),
+      debugVerifyUrl: data?.verification?.debugVerifyUrl,
+    })
+  }
+
+  async function resendVerification(targetEmail: string) {
+    setResendStatus('sending')
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      if (!res.ok) {
+        setResendStatus('failed')
+        return
+      }
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('failed')
     }
-    router.push(from)
-    router.refresh()
+  }
+
+  if (success) {
+    return (
+      <div className="space-y-4 text-sm">
+        <div className="p-4 border border-border bg-surface-low space-y-2">
+          <p className="text-foreground font-medium">注册成功，请去邮箱完成验证</p>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            我们已向 <span className="text-foreground font-mono">{success.email}</span> 发送了一封验证邮件，
+            请点击邮件中的链接完成激活后再登录。链接 24 小时内有效。
+          </p>
+          {!success.emailDelivered && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              提示：服务器尚未配置 SMTP，邮件未实际投递。
+              {success.debugVerifyUrl ? (
+                <>
+                  调试链接：
+                  <a href={success.debugVerifyUrl} className="underline break-all">
+                    {success.debugVerifyUrl}
+                  </a>
+                </>
+              ) : null}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => resendVerification(success.email)}
+          disabled={resendStatus === 'sending' || resendStatus === 'sent'}
+          className="w-full py-2.5 border border-border text-foreground hover:bg-surface-low transition-colors disabled:opacity-50"
+        >
+          {resendStatus === 'sending'
+            ? '发送中...'
+            : resendStatus === 'sent'
+              ? '已重新发送'
+              : resendStatus === 'failed'
+                ? '发送失败，再试一次'
+                : '没收到？重新发送'}
+        </button>
+        <Link
+          href={from !== '/' ? `/login?from=${encodeURIComponent(from)}` : '/login'}
+          className="block text-center text-xs text-muted-foreground hover:text-foreground"
+        >
+          已完成验证，前往登录 →
+        </Link>
+      </div>
+    )
   }
 
   return (
@@ -116,7 +183,7 @@ function RegisterForm() {
         disabled={submitting}
         className="w-full py-2.5 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
       >
-        {submitting ? '注册中...' : '注册并登录'}
+        {submitting ? '提交中...' : '注册并发送验证邮件'}
       </button>
       <div className="text-center text-sm text-muted-foreground">
         已有账号？

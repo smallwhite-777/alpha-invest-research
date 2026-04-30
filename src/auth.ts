@@ -28,6 +28,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await compare(password, user.passwordHash)
         if (!ok) return null
 
+        if (!user.emailVerified) {
+          throw new Error('email_not_verified')
+        }
+
         return {
           id: user.id,
           email: user.email,

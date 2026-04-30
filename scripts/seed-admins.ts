@@ -34,19 +34,21 @@ async function main() {
   const passwordHash = await hash(defaultPassword, 10)
 
   console.log(`Seeding ${emails.length} admin user(s)...`)
+  const now = new Date()
   for (const email of emails) {
     const user = await prisma.user.upsert({
       where: { email },
-      update: { role: 'ADMIN' },
+      update: { role: 'ADMIN', emailVerified: now },
       create: {
         email,
         passwordHash,
         role: 'ADMIN',
         name: email.split('@')[0],
+        emailVerified: now,
       },
-      select: { id: true, email: true, role: true, createdAt: true },
+      select: { id: true, email: true, role: true, emailVerified: true, createdAt: true },
     })
-    console.log(`  ✓ ${user.email}  [${user.role}]`)
+    console.log(`  ✓ ${user.email}  [${user.role}] verified=${Boolean(user.emailVerified)}`)
   }
 
   console.log('')
