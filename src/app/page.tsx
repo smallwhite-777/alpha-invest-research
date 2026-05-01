@@ -3,17 +3,9 @@
 import Link from 'next/link'
 import useSWR from 'swr'
 import { LogoSerifTerminal } from '@/components/ui/LogoSerifTerminal'
-import { Sparkline, generateSparkSeed } from '@/components/ui/Sparkline'
 
 const prismaFetcher = async (url: string) => {
   const res = await fetch(url)
-  if (!res.ok) throw new Error('Network error')
-  return res.json()
-}
-
-const pyFetcher = async (url: string) => {
-  const PY = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:5001'
-  const res = await fetch(`${PY}${url}`)
   if (!res.ok) throw new Error('Network error')
   return res.json()
 }
@@ -42,39 +34,6 @@ interface SectorResponse {
   success: boolean
   sectors: Sector[]
 }
-
-interface Stock {
-  code: string
-  name: string
-  sector: string
-  signal: string
-  target: string
-  change: string
-}
-
-const TOP10_SEED: Stock[] = [
-  { code: '688981', name: '中芯国际', sector: '半导体', signal: '产能扩张窗口', target: '+38%', change: '+2.14' },
-  { code: '300750', name: '宁德时代', sector: '新能源', signal: '海外订单加速', target: '+32%', change: '+1.32' },
-  { code: '600519', name: '贵州茅台', sector: '白酒', signal: '渠道库存出清', target: '+24%', change: '+0.85' },
-  { code: '002594', name: '比亚迪', sector: '汽车', signal: 'DM-i 5.0 放量', target: '+41%', change: '+3.07' },
-  { code: '600036', name: '招商银行', sector: '银行', signal: '净息差企稳', target: '+22%', change: '+0.42' },
-  { code: '000858', name: '五粮液', sector: '白酒', signal: '估值回归', target: '+26%', change: '+1.05' },
-  { code: '600276', name: '恒瑞医药', sector: '医药', signal: '创新药管线兑现', target: '+30%', change: '+1.84' },
-  { code: '000333', name: '美的集团', sector: '家电', signal: '海外份额提升', target: '+25%', change: '+0.62' },
-  { code: '601012', name: '隆基绿能', sector: '光伏', signal: 'BC 技术放量', target: '+35%', change: '+2.41' },
-  { code: '300059', name: '东方财富', sector: '券商', signal: '交投活跃修复', target: '+20%', change: '+1.18' },
-]
-
-const SECTORS_SEED: Sector[] = [
-  { name: '半导体', change: 3.42 },
-  { name: 'AI 算力', change: 2.87 },
-  { name: '新能源车', change: 1.92 },
-  { name: '消费电子', change: 1.21 },
-  { name: '银行', change: 0.48 },
-  { name: '白酒', change: -0.32 },
-  { name: '光伏', change: -1.18 },
-  { name: '地产', change: -2.04 },
-]
 
 const TODAY_OUTPUT_SEED = [
   { tag: '深度报告', tone: 'navy' as const, title: 'AI Agent 重构卖方研究', meta: '研究院 · 18 min' },
@@ -160,7 +119,7 @@ export default function Homepage() {
     prismaFetcher,
     { revalidateOnFocus: false, dedupingInterval: 300000 },
   )
-  const { data: sectorData } = useSWR<SectorResponse>('/api/market/sectors', pyFetcher, {
+  const { data: sectorData } = useSWR<SectorResponse>('/api/market/sectors', prismaFetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300000,
   })
@@ -186,7 +145,9 @@ export default function Homepage() {
         }))
       : INTEL_FEED_SEED
 
-  const sectors = sectorData?.success && sectorData.sectors.length >= 4 ? sectorData.sectors.slice(0, 8) : SECTORS_SEED
+  const realSectors = sectorData?.success && sectorData.sectors.length >= 4 ? sectorData.sectors.slice(0, 8) : []
+  const hasRealSectors = realSectors.length > 0
+  const sectors = hasRealSectors ? realSectors : []
 
   const dateLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(new Date())
 
@@ -216,18 +177,6 @@ export default function Homepage() {
           >
             {/* Left: brand statement */}
             <div>
-              <div
-                className="font-serif"
-                style={{
-                  fontSize: 13,
-                  letterSpacing: '0.2em',
-                  color: MUTED,
-                  marginBottom: 32,
-                }}
-              >
-                二〇二六年四月 · 第 142 期
-              </div>
-
               {/* Brand statement — one sentence, natural wrap */}
               <h1
                 className="font-display"
@@ -523,56 +472,25 @@ export default function Homepage() {
                 查看全部 →
               </Link>
             </div>
-            <div>
-              {TOP10_SEED.map((s, i) => (
-                <Link
-                  key={s.code}
-                  href={`/stock/${s.code}`}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '28px 1.4fr 90px 1.5fr 70px 70px 70px',
-                    padding: '12px 0',
-                    fontSize: 13,
-                    borderBottom: i < TOP10_SEED.length - 1 ? '1px solid rgba(0,22,41,0.05)' : 'none',
-                    alignItems: 'center',
-                    gap: 8,
-                    textDecoration: 'none',
-                    color: 'inherit',
-                  }}
-                >
-                  <span className="font-mono-data" style={{ fontSize: 11, color: MUTED }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span>
-                    <span className="font-serif" style={{ fontWeight: 500 }}>
-                      {s.name}
-                    </span>
-                    <span
-                      className="font-mono-data"
-                      style={{ fontSize: 11, color: MUTED, marginLeft: 8 }}
-                    >
-                      {s.code}
-                    </span>
-                  </span>
-                  <span style={{ fontSize: 12, color: MUTED }}>{s.sector}</span>
-                  <span className="font-serif" style={{ fontStyle: 'italic', fontSize: 13 }}>
-                    {s.signal}
-                  </span>
-                  <Sparkline values={generateSparkSeed(i + 1)} color="var(--up)" width={64} height={20} />
-                  <span
-                    className="font-mono-data"
-                    style={{ textAlign: 'right', color: SAGE, fontWeight: 500 }}
-                  >
-                    {s.target}
-                  </span>
-                  <span
-                    className="font-mono-data"
-                    style={{ textAlign: 'right', color: SAGE }}
-                  >
-                    {s.change}
-                  </span>
+            <div
+              style={{
+                marginTop: 8,
+                padding: '40px 24px',
+                border: '1px dashed rgba(0,22,41,0.15)',
+                textAlign: 'center',
+                color: MUTED,
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            >
+              暂无看涨观点
+              <div style={{ fontSize: 11, marginTop: 8, opacity: 0.7 }}>
+                十只精选由 open1nvest 研究院定期更新，正在筹备首期。先去
+                <Link href="/intelligence" style={{ color: NAVY, textDecoration: 'underline', margin: '0 4px' }}>
+                  情报中心
                 </Link>
-              ))}
+                看一手信号。
+              </div>
             </div>
           </div>
 
@@ -580,6 +498,24 @@ export default function Homepage() {
           <div style={{ padding: '48px 56px' }}>
             <SectionLabel>行 情 看 板</SectionLabel>
             <SectionTitle>板块强弱 · 风格轮动</SectionTitle>
+            {!hasRealSectors ? (
+              <div
+                style={{
+                  marginTop: 28,
+                  padding: '48px 24px',
+                  border: '1px dashed rgba(0,22,41,0.15)',
+                  textAlign: 'center',
+                  color: MUTED,
+                  fontSize: 13,
+                  lineHeight: 1.7,
+                }}
+              >
+                板块行情正在加载…
+                <div style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>
+                  数据源：东方财富。如长时间未刷新可能是网络受限
+                </div>
+              </div>
+            ) : (
             <div
               style={{
                 marginTop: 28,
@@ -636,6 +572,7 @@ export default function Homepage() {
                 )
               })}
             </div>
+            )}
           </div>
         </section>
 

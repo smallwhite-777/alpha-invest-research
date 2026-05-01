@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import { useTheme } from 'next-themes'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -13,21 +14,23 @@ import { UserMenu } from '@/components/auth/UserMenu'
 import { GuestQuotaBadge } from '@/components/auth/GuestQuotaBadge'
 
 interface IndexQuote {
+  code?: string
   name: string
   value: string
   change: number
   isPercent: boolean
 }
 
-const INDEX_SEED: IndexQuote[] = [
-  { name: '上证', value: '3,247.82', change: 0.84, isPercent: true },
-  { name: '深证', value: '10,184.6', change: 1.12, isPercent: true },
-  { name: '创业板', value: '2,156.40', change: 1.62, isPercent: true },
-  { name: '恒生', value: '18,924.6', change: -0.31, isPercent: true },
-  { name: '美元/人民币', value: '7.218', change: -0.04, isPercent: false },
-  { name: '布伦特', value: '83.42', change: 0.91, isPercent: true },
-  { name: '10Y国债', value: '2.31%', change: 0.012, isPercent: false },
-]
+interface IndicesResponse {
+  success: boolean
+  indices: IndexQuote[]
+}
+
+const indicesFetcher = async (url: string): Promise<IndicesResponse> => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('indices fetch failed')
+  return res.json()
+}
 
 const HOT_SEARCHES = [
   { type: 'stock', text: '贵州茅台' },
@@ -233,6 +236,11 @@ export function TopBar() {
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
   const time = useClock()
+  const { data: indicesData } = useSWR<IndicesResponse>('/api/market/indices', indicesFetcher, {
+    refreshInterval: 60_000,
+    revalidateOnFocus: false,
+  })
+  const indices: IndexQuote[] = indicesData?.success ? indicesData.indices : []
 
   useEffect(() => setMounted(true), [])
 
@@ -290,13 +298,19 @@ export function TopBar() {
           color: 'rgba(228,226,221,0.85)',
         }}
       >
-        {INDEX_SEED.map((q) => (
-          <span key={q.name} className="font-mono-data">
-            <span style={{ opacity: 0.6 }}>{q.name}</span>{' '}
-            {q.value}{' '}
-            <span style={{ color: q.change >= 0 ? SAGE : MAROON }}>{formatChange(q)}</span>
+        {indices.length === 0 ? (
+          <span style={{ opacity: 0.45, fontSize: 11 }} className="font-mono-data">
+            行情加载中…
           </span>
-        ))}
+        ) : (
+          indices.map((q) => (
+            <span key={q.code ?? q.name} className="font-mono-data">
+              <span style={{ opacity: 0.6 }}>{q.name}</span>{' '}
+              {q.value}{' '}
+              <span style={{ color: q.change >= 0 ? SAGE : MAROON }}>{formatChange(q)}</span>
+            </span>
+          ))
+        )}
       </div>
 
       {/* Right: clock + actions */}
